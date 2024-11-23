@@ -1,0 +1,21 @@
+{
+  "返回": {
+    "recognition": "TemplateMatch",
+    "template": "../image/返回.png",
+    "roi": [14,43,55,64],
+    "action": "Click"
+  },
+  "电视台": {
+    "recognition": "TemplateMatch",
+    "template": "../image/电视台.png",
+    "roi" : [464,1201,77,79],
+    "action": "Click"
+  },
+  "返回2": {
+    "recognition": "TemplateMatch",
+    "template": "../image/返回2.png",
+    "roi": [14,44,54,61],
+    "action": "Click",
+    "green_mask": true
+  }
+}
