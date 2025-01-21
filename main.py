@@ -14,7 +14,7 @@ def main():
 
     resource = Resource()
     resource.set_cpu()
-    res_job = resource.post_path("./resource")
+    res_job = resource.post_bundle("./resource")
     res_job.wait()
 
     adb_devices = Toolkit.find_adb_devices()
@@ -43,12 +43,14 @@ def main():
     model = ONNXModel()
 
     finished_article = []
+    reading_time = 0
     finished_video = []
-    # 看八篇文章，确保刷满时长
-    while len(finished_article) < 8:
+    waiting_time = 0
+    while reading_time < 400:
         # 识别文章，获取点击文章的坐标范围
         image = tasker.controller.post_screencap().wait().get()
         article_boxes, box_class = model.detect(image)
+        # cv2.imwrite(f"./img_origin/{int(time.time())}.jpg", image)
         # 没有文章就滑动屏幕
         if len(article_boxes) == 0:
             tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600), randint(300, 400),
@@ -79,17 +81,18 @@ def main():
                     for _ in range(5):
                         tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
                                                      randint(300, 400), randint(1000, 1500)).wait()
-                        time.sleep(randint(8, 10))
+                        t = randint(8, 10)
+                        time.sleep(t)
+                        reading_time += t
                     time.sleep(1)
-                    tasker.post_pipeline("返回").wait()
+                    tasker.post_task("返回").wait()
                     time.sleep(randint(3, 5))
                     finished_article.append(video_image_list[i])
         tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
                                      randint(300, 400),randint(1000, 1500)).wait()
-    tasker.post_pipeline("电视台").wait()
+    tasker.post_task("电视台").wait()
     time.sleep(randint(3, 5))
-    # 看八个视频，确保刷满时长
-    while len(finished_video) < 8:
+    while waiting_time < 400:
         # 识别视频，获取点击视频的坐标范围
         image = tasker.controller.post_screencap().wait().get()
         article_boxes, box_class = model.detect(image)
@@ -120,8 +123,10 @@ def main():
                     print(f"video_{len(finished_video)}")
                     tasker.controller.post_click(article_boxes[i][0] + 150, article_boxes[i][1] + 10)
                     time.sleep(3)
-                    time.sleep(randint(50, 70))
-                    tasker.post_pipeline("返回2").wait()
+                    t = randint(50, 70)
+                    time.sleep(t)
+                    waiting_time += t
+                    tasker.post_task("返回2").wait()
                     time.sleep(randint(3, 5))
                     finished_video.append(video_image_list[i])
         tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),

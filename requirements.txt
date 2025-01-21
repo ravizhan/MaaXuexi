@@ -1,0 +1,4 @@
+MaaFw ~= 3.0.1
+opencv-python-headless ~= 4.11.0.86
+onnxruntime ~= 1.20.1
+numpy ~= 2.2.2
