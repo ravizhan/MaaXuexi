@@ -1,7 +1,9 @@
+import base64
 import time
 import numpy as np
 import onnxruntime
 import cv2
+import httpx
 
 
 def match_sift_flann(image1, image2):
@@ -123,3 +125,77 @@ class ONNXModel:
         # 解压排序后的结果
         new_boxes, new_class_ids = zip(*combined)
         return list(new_boxes), list(new_class_ids)
+
+
+class AIResolver:
+    def __init__(self, api_key, endpoint):
+        self.endpoint = endpoint
+        self.session = httpx.Client()
+        self.session.headers = {"Authorization": f"Bearer {api_key}"}
+
+    def resolve_choice(self, img: np.ndarray) -> list[str] | None:
+        url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+        data = {
+            "model": self.endpoint,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "能力与角色:你是一位答题助手。\n背景信息:你会得到一张带有问题的图片\n指令:你需要阅读该图片中的问题，认真理解题目和选项的内容，思考后作出回答\n输出风格:你无需给出推理过程，也无需给出任何解释。你只需要回答正确的选项对应的字母，不得回答任何多余的文字。\n输出范围:我希望你仅仅回答 ABCD 中的一个或多个字符。"
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": "data:image/jpg;base64,"+base64.b64encode(cv2.imencode('.jpg', img)[1].tobytes()).decode(),
+                        }
+                    ],
+                }
+            ],
+            "temperature": 0.2
+        }
+        response = self.session.post(url, json=data)
+        try:
+            if response.status_code == 200:
+                result = response.json()
+                answer = list(result["choices"][0]["message"]["content"])
+                for i in answer:
+                    if i not in ['A', 'B', 'C', 'D']:
+                        raise ValueError("Invalid answer")
+            else:
+                answer = None
+        except:
+            answer = None
+        return answer
+
+    def resolve_blank(self, img: np.ndarray) -> str | None:
+        url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+        data = {
+            "model": self.endpoint,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "能力与角色:你是一位答题助手\n背景信息:你会得到一张带有问题的图片\n指令:你需要阅读该图片中的问题，认真理解题目，确认填空的数量，思考后作出回答\n输出风格:你无需给出推理过程，也无需给出任何解释。你只需要回答空缺处应当填的内容，填充字数应当与空缺数量相同"
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": "data:image/jpg;base64,"+base64.b64encode(cv2.imencode('.jpg', img)[1].tobytes()).decode(),
+                        }
+                    ],
+                }
+            ],
+            "temperature": 0.2
+        }
+        response = self.session.post(url, json=data)
+        try:
+            if response.status_code == 200:
+                result = response.json()
+                answer = result["choices"][0]["message"]["content"]
+            else:
+                answer = None
+        except:
+            answer = None
+        return answer

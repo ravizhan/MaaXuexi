@@ -18,13 +18,23 @@
 [<img src="https://api.gitsponsors.com/api/badge/img?id=892976182" height="30">](https://api.gitsponsors.com/api/badge/link?p=BmTVRa4Q8TtMZS4DMpTG3041SLDUk4W2uhU81GU9B62IsJgT2SNR1EUla6Y/Y4pUipjwNBlY2madJRzcueOYZiai/Ey00xo1lT5jz3Cp5o/bVdYejQ7BC1AnMOAoH8L+2abXXdw5dRDwMerZgdMGtQ==)
 </div>
 
+## 警告
 
+本项目仅限用于学习研究，禁止倒卖本项目
+
+因使用本项目造成的任何后果与本人无关
+
+**本项目仅供学习交流使用，禁止用于商业用途，否则后果自负。**
+
+**本项目仅供学习交流使用，禁止用于商业用途，否则后果自负。**
+
+**本项目仅供学习交流使用，禁止用于商业用途，否则后果自负。**
 
 ## 功能
 
 - [x] 阅读文章 稳定刷满12分
 - [x] 观看视频 大概率7分 小概率11分
-- [ ] 每日答题 开发中 🛠️
+- [x] 每日答题 应该能用(?) 遇到BUG请即时反馈
 - [ ] 趣味答题 开发中️ 🛠️
 
 ## 环境要求
@@ -39,6 +49,43 @@
 
 ## 使用
 
+### AI配置
+
+本项目使用字节跳动的 Doubao-1.5-vision-pro-32k 来解决选择题和部分填空题。
+> 无广，问就是便宜而且效果好
+
+先到 [火山引擎](https://www.volcengine.com/) 注册账号并实名
+
+然后到 [火山方舟控制台](https://console.volcengine.com/ark/region:ark+cn-beijing/openManagement) 开通 Doubao-1.5-vision-pro-32k 
+
+![image-20250123170639338](https://img.ravi.top/img/4e1072e68a1f0a9892e8fb248619be4c.png)
+
+接着点击 [在线推理](https://console.volcengine.com/ark/region:ark+cn-beijing/endpoint)，创建推理接入点，模型选择 Doubao-1.5-vision-pro-32k
+
+![image-20250123170921114](https://img.ravi.top/img/33595a8e33d9b16484b251ae1755fb7c.png)
+
+创建完成后，复制endpoint
+
+![image-20250123171227248](https://img.ravi.top/img/7f95e256146db9adf5ea67e117d8c436.png)
+
+最后到 [API Key 管理](https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey) ，创建API Key并复制
+
+![image-20250123171536042](https://img.ravi.top/img/543d40dfb2c2e28423652befabc4a3ba.png)
+
+**关于费用**
+
+调用一次AI大概消耗1300tokens，其中输出tokens极少，可忽略不计
+
+按照每日答题5道题，趣味答题5道题计算，一个月大约消耗40万tokens
+
+![image-20250123173430035](https://img.ravi.top/img/fe6872c6b3e67b5124237bed9be4fc73.png)
+
+一个月费用在1.2元左右
+
+此外，火山引擎注册即送50万tokens免费推理额度，足够免费使用1个月
+
+### 项目配置
+
 克隆本项目到本地 或 [直接下载zip包](https://github.com/ravizhan/MaaXuexi/archive/refs/heads/main.zip)
 ``` bash
 git clone https://github.com/ravizhan/MaaXuexi
@@ -48,7 +95,14 @@ git clone https://github.com/ravizhan/MaaXuexi
 cd MaaXuexi
 pip install -r requirements.txt
 ```
+编辑 `main.py` 第45行，粘贴API Key和endpoint
+
+``` python
+ai_resolver = AIResolver(api_key="", endpoint="")
+```
+
 运行
+
 ``` bash
 python main.py
 ```
@@ -56,3 +110,5 @@ python main.py
 ## 许可
 
 基于本项目使用的 [PySide6](https://pypi.org/project/PySide6/) 和 [MaaFramework](https://pypi.org/project/MaaFw/) ，本项目采用 [AGPLv3协议](https://github.com/ravizhan/MaaXuexi/blob/main/LICENSE) 开源
+
+**本项目完全免费，严禁倒卖或用于盈利目的**

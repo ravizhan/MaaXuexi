@@ -2,7 +2,8 @@
   "返回": {
     "recognition": "TemplateMatch",
     "template": "../image/返回.png",
-    "roi": [14,43,55,64],
+    "roi": [12,43,55,64],
+    "threshold": 0.4,
     "action": "Click"
   },
   "电视台": {
@@ -17,5 +18,112 @@
     "roi": [14,44,54,61],
     "action": "Click",
     "green_mask": true
+  },
+  "积分": {
+    "recognition": "TemplateMatch",
+    "template": "../image/积分.png",
+    "roi" : [520,48,188,51],
+    "action": "DoNothing"
+  },
+  "加载失败": {
+    "recognition": "TemplateMatch",
+    "template": "../image/加载失败.png",
+    "roi" : [191,917,335,68],
+    "action": "DoNothing",
+    "timeout": 1100,
+    "inverse": true
+  },
+  "每日答题": {
+    "recognition": "TemplateMatch",
+    "template": "../image/每日答题.png",
+    "roi" : [0,330,720,950],
+    "action": "DoNothing"
+  },
+  "填空题": {
+    "recognition": "TemplateMatch",
+    "template": "../image/填空题.png",
+    "roi" : [43,182,169,75],
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 1100,
+    "inverse": true
+  },
+  "选A": {
+    "recognition": "TemplateMatch",
+    "template": "../image/A.png",
+    "threshold": 0.9,
+    "action": "Click"
+  },
+  "选B": {
+    "recognition": "TemplateMatch",
+    "template": "../image/B.png",
+    "threshold": 0.9,
+    "action": "Click"
+  },
+  "选C": {
+    "recognition": "TemplateMatch",
+    "template": "../image/C.png",
+    "threshold": 0.9,
+    "action": "Click"
+  },
+  "选D": {
+    "recognition": "TemplateMatch",
+    "template": "../image/D.png",
+    "threshold": 0.9,
+    "action": "Click"
+  },
+  "下一题": {
+    "recognition": "TemplateMatch",
+    "template": "../image/下一题.png",
+    "roi" : [552,44,131,61],
+    "action": "Click"
+  },
+  "访问异常": {
+    "recognition": "TemplateMatch",
+    "template": "../image/访问异常.png",
+    "roi" : [100,217,519,109],
+    "action": "DoNothing",
+    "timeout": 1100,
+    "inverse": true
+  },
+  "填空题视频": {
+    "recognition": "TemplateMatch",
+    "template": "../image/填空题视频.png",
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 1100,
+    "inverse": true
+  },
+  "查看提示": {
+    "recognition": "TemplateMatch",
+    "template": "../image/查看提示.png",
+    "action": "Click"
+  },
+  "关闭提示": {
+    "recognition": "TemplateMatch",
+    "template": "../image/关闭提示.png",
+    "roi" : [635,429,52,54],
+    "action": "Click"
+  },
+  "find_red": {
+    "recognition": "ColorMatch",
+    "roi" : [0,503,720,776],
+    "lower": [255, 0, 0],
+    "upper": [255, 254, 254]
+  },
+  "rec_answer": {
+    "recognition": "OCR",
+    "expected": "[\\u4e00-\\u9fa5]+",
+    "only_rec": true
+  },
+  "文本框点击": {
+    "recognition": "TemplateMatch",
+    "template": "../image/文本框.png",
+    "action": "Click"
+  },
+  "文本框输入": {
+    "recognition": "TemplateMatch",
+    "template": "../image/文本框.png",
+    "action": "InputText"
   }
 }
