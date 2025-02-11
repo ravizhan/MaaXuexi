@@ -23,7 +23,8 @@
     "recognition": "TemplateMatch",
     "template": "../image/积分.png",
     "roi" : [520,48,188,51],
-    "action": "DoNothing"
+    "target_offset": [20,5,0,0],
+    "action": "Click"
   },
   "加载失败": {
     "recognition": "TemplateMatch",
@@ -37,7 +38,8 @@
     "recognition": "TemplateMatch",
     "template": "../image/每日答题.png",
     "roi" : [0,330,720,950],
-    "action": "DoNothing"
+    "target_offset": [45,15,0,0],
+    "action": "Click"
   },
   "填空题": {
     "recognition": "TemplateMatch",
@@ -92,7 +94,8 @@
     "action": "DoNothing",
     "threshold": 0.9,
     "timeout": 1100,
-    "inverse": true
+    "inverse": true,
+    "green_mask": true
   },
   "查看提示": {
     "recognition": "TemplateMatch",

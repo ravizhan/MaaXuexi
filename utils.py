@@ -49,7 +49,7 @@ def match_sift_flann(image1, image2):
 
     # 计算相似度
     similarity = len(good_matches) / min(len(keypoints1), len(keypoints2))
-    print("Similarity score: ", similarity)
+    # print("Similarity score: ", similarity)
     return matched_image, similarity
 
 def letterbox(img, new_shape, color=(114, 114, 114)):
@@ -133,21 +133,25 @@ class AIResolver:
         self.session = httpx.Client()
         self.session.headers = {"Authorization": f"Bearer {api_key}"}
 
-    def resolve_choice(self, img: np.ndarray) -> list[str] | None:
+    def resolve_choice(self, img1: np.ndarray, img2: np.ndarray) -> list[str] | None:
         url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
         data = {
             "model": self.endpoint,
             "messages": [
                 {
                     "role": "system",
-                    "content": "能力与角色:你是一位答题助手。\n背景信息:你会得到一张带有问题的图片\n指令:你需要阅读该图片中的问题，认真理解题目和选项的内容，思考后作出回答\n输出风格:你无需给出推理过程，也无需给出任何解释。你只需要回答正确的选项对应的字母，不得回答任何多余的文字。\n输出范围:我希望你仅仅回答 ABCD 中的一个或多个字符。"
+                    "content": "能力与角色:你是一位答题助手。\n背景信息:你会得到一张带有选择题的图片和一张带有答案的图片\n指令:你需要阅读分别阅读两张图片的内容，其中答案为红字部分，回答包含答案的选项\n输出风格:你无需给出推理过程以及任何解释。你只需要回答正确选项对应的ABCD，不得回答任何多余的文字，不得添加任何的标点符号。\n输出范围:我希望你仅仅回答 ABCD 中的一个或多个字母。"
                 },
                 {
                     "role": "user",
                     "content": [
                         {
                             "type": "image_url",
-                            "image_url": "data:image/jpg;base64,"+base64.b64encode(cv2.imencode('.jpg', img)[1].tobytes()).decode(),
+                            "image_url": "data:image/jpg;base64,"+base64.b64encode(cv2.imencode('.jpg', img1)[1].tobytes()).decode(),
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": "data:image/jpg;base64," + base64.b64encode(cv2.imencode('.jpg', img2)[1].tobytes()).decode(),
                         }
                     ],
                 }
@@ -158,10 +162,13 @@ class AIResolver:
         try:
             if response.status_code == 200:
                 result = response.json()
+                print(result)
                 answer = list(result["choices"][0]["message"]["content"])
-                for i in answer:
+                for i in answer.copy():
                     if i not in ['A', 'B', 'C', 'D']:
-                        raise ValueError("Invalid answer")
+                        answer.remove(i)
+                if len(answer) == 0:
+                    raise ValueError("Invalid answer")
             else:
                 answer = None
         except:

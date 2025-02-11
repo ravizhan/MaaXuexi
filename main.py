@@ -52,111 +52,82 @@ def main():
     while reading_time < 400:
         # 识别文章，获取点击文章的坐标范围
         image = tasker.controller.post_screencap().wait().get()
-        article_boxes, box_class = model.detect(image)
+        boxes, box_class = model.detect(image)
+        boxes, box_class = zip(*[(box, cls) for box, cls in zip(boxes, box_class) if cls in ["article", "article_image"]])
         # cv2.imwrite(f"./img_origin/{int(time.time())}.jpg", image)
         # 没有文章就滑动屏幕
-        if len(article_boxes) == 0:
-            tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600), randint(300, 400),
-                                         randint(1000, 1500)).wait()
+        if len(boxes) == 0:
+            tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600), randint(300, 400),randint(1000, 1500)).wait()
             continue
-        video_image_list = []
-        for box in article_boxes:
+        article_list = []
+        for box in boxes:
             cv2.rectangle(image, (box[0], box[1]), (box[0] + box[2], box[1] + box[3]), (0, 255, 0), 2)
             img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
-            video_image_list.append(img)
+            article_list.append(img)
         cv2.imwrite("result.jpg", image)
         a = 0
         for i in range(len(box_class)):
-            if box_class[i] in ["article","article_image"]:
-                excute = True
-                for img2 in finished_article:
-                    result_img, score = match_sift_flann(video_image_list[i], img2)
-                    # cv2.imwrite(f"similar_{reading_count}_{a}.jpg", result_img)
-                    a += 1
-                    if score > 0.7:
-                        excute = False
-                        break
-                if excute:
-                    cv2.imwrite(f"read_{len(finished_article)}.jpg", video_image_list[i])
-                    print(f"read_{len(finished_article)}")
-                    tasker.controller.post_click(article_boxes[i][0]+150, article_boxes[i][1]+10)
-                    time.sleep(3)
-                    for _ in range(5):
-                        tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
-                                                     randint(300, 400), randint(1000, 1500)).wait()
-                        t = randint(8, 10)
-                        time.sleep(t)
-                        reading_time += t
-                    time.sleep(1)
-                    tasker.post_task("返回").wait()
-                    time.sleep(randint(3, 5))
-                    finished_article.append(video_image_list[i])
-        tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
-                                     randint(300, 400),randint(1000, 1500)).wait()
+            if all(match_sift_flann(article_list[i], img2)[1] <= 0.7 for img2 in finished_article):
+                cv2.imwrite(f"read_{len(finished_article)}.jpg", article_list[i])
+                print(f"read_{len(finished_article)}")
+                tasker.controller.post_click(boxes[i][0]+150, boxes[i][1]+10)
+                time.sleep(3)
+                for _ in range(5):
+                    tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),randint(300, 400), randint(1000, 1500)).wait()
+                    t = randint(8, 10)
+                    time.sleep(t)
+                    reading_time += t
+                time.sleep(1)
+                tasker.post_task("返回").wait()
+                time.sleep(randint(3, 5))
+                finished_article.append(article_list[i])
+        tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),randint(300, 400),randint(1000, 1500)).wait()
     tasker.post_task("电视台").wait()
     time.sleep(randint(3, 5))
     while waiting_time < 400:
         # 识别视频，获取点击视频的坐标范围
         image = tasker.controller.post_screencap().wait().get()
-        article_boxes, box_class = model.detect(image)
+        boxes, box_class = model.detect(image)
+        boxes, box_class = zip(*[(box, cls) for box, cls in zip(boxes, box_class) if cls in ["video"]])
         # 没有视频就滑动屏幕
-        if len(article_boxes) == 0:
-            tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600), randint(300, 400),
-                                         randint(1000, 1500)).wait()
+        if len(boxes) == 0:
+            tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600), randint(300, 400),randint(1000, 1500)).wait()
             continue
-        video_image_list = []
-        for box in article_boxes:
+        video_list = []
+        for box in boxes:
             cv2.rectangle(image, (box[0], box[1]), (box[0] + box[2], box[1] + box[3]), (0, 255, 0), 2)
             img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
-            video_image_list.append(img)
+            video_list.append(img)
         cv2.imwrite("result.jpg", image)
         a = 0
         for i in range(len(box_class)):
-            if box_class[i] in ["video"]:
-                excute = True
-                for img2 in finished_video:
-                    result_img, score = match_sift_flann(video_image_list[i], img2)
-                    # cv2.imwrite(f"similar_{reading_count}_{a}.jpg", result_img)
-                    a += 1
-                    if score > 0.7:
-                        excute = False
-                        break
-                if excute:
-                    cv2.imwrite(f"video_{len(finished_video)}.jpg", video_image_list[i])
-                    print(f"video_{len(finished_video)}")
-                    tasker.controller.post_click(article_boxes[i][0] + 150, article_boxes[i][1] + 10)
-                    time.sleep(3)
-                    t = randint(50, 70)
-                    time.sleep(t)
-                    waiting_time += t
-                    tasker.post_task("返回2").wait()
-                    time.sleep(randint(3, 5))
-                    finished_video.append(video_image_list[i])
-        tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
-                                     randint(300, 400), randint(1000, 1500)).wait()
-    recog_result: TaskDetail = tasker.post_task("积分").wait().get()
-    click_point = (recog_result.nodes[0].recognition.box.x+40, recog_result.nodes[0].recognition.box.y+5)
-    tasker.controller.post_click(click_point[0], click_point[1]).wait()
+            if all(match_sift_flann(video_list[i], img2)[1] <= 0.7 for img2 in finished_video):
+                cv2.imwrite(f"video_{len(finished_video)}.jpg", video_list[i])
+                print(f"video_{len(finished_video)}")
+                tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
+                time.sleep(3)
+                t = randint(50, 70)
+                time.sleep(t)
+                waiting_time += t
+                tasker.post_task("返回2").wait()
+                time.sleep(randint(3, 5))
+                finished_video.append(video_list[i])
+        tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),randint(300, 400), randint(1000, 1500)).wait()
+    tasker.post_task("积分").wait()
     # 等待界面加载完毕
     time.sleep(10)
     laod_result: TaskDetail = tasker.post_task("加载失败").wait().get()
     while not laod_result.nodes:
         tasker.post_task("返回").wait()
-        recog_result: TaskDetail = tasker.post_task("积分").wait().get()
-        click_point = (recog_result.nodes[0].recognition.box.x + 40, recog_result.nodes[0].recognition.box.y + 5)
-        tasker.controller.post_click(click_point[0], click_point[1]).wait()
+        tasker.post_task("积分").wait()
         time.sleep(10)
         laod_result: TaskDetail = tasker.post_task("加载失败").wait().get()
     print("加载成功")
     # 滑动到每日答题按钮
-    tasker.controller.post_swipe(randint(200, 300), randint(1000, 1100), randint(500, 600), randint(100, 200),
-                                 randint(1000, 1500)).wait()
+    tasker.controller.post_swipe(randint(200, 300), randint(1000, 1100), randint(500, 600), randint(100, 200),randint(1000, 1500)).wait()
     time.sleep(randint(1, 2))
     # 点击每日答题按钮
-    recog_result: TaskDetail = tasker.post_task("每日答题").wait().get()
-    click_point = (recog_result.nodes[0].recognition.box.x + 45, recog_result.nodes[0].recognition.box.y + 15)
-    print(click_point)
-    tasker.controller.post_click(click_point[0], click_point[1]).wait()
+    tasker.post_task("每日答题").wait()
     print("开始答题")
     # 等待界面加载完毕
     time.sleep(5)
@@ -203,10 +174,17 @@ def main():
             print("输入完成")
         else:
             print("选择题")
-            # 截图
-            image = tasker.controller.post_screencap().wait().get()
+            # 问题截图
+            img1 = tasker.controller.post_screencap().wait().get()
+            # 答案截图
+            tasker.post_task("查看提示").wait()
+            time.sleep(1)
+            img2 = tasker.controller.post_screencap().wait().get()
+            tasker.post_task("关闭提示").wait()
+            img2 = img2[500:1280, 0:720]
+            time.sleep(1)
             # AI解答
-            answer = ai_resolver.resolve_choice(image)
+            answer = ai_resolver.resolve_choice(img1,img2)
             if answer is None:
                 plyer.notification.notify(
                     title="MaaXuexi",

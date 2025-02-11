@@ -33,7 +33,7 @@
 ## 功能
 
 - [x] 阅读文章 稳定刷满12分
-- [x] 观看视频 大概率7分 小概率11分
+- [x] 观看视频 大概率7分 小概率12分
 - [x] 每日答题 应该能用(?) 遇到BUG请即时反馈
 - [ ] 趣味答题 开发中️ 🛠️
 
@@ -45,14 +45,14 @@
 
   安卓模拟器推荐使用 [雷电模拟器](https://www.ldmnq.com/) 或 [MuMu 模拟器 12](https://mumu.163.com/)
 
-  真机暂未进行测试，请谨慎使用
+  真机暂未进行测试，请**谨慎使用**
 
 ## 使用
 
 ### AI配置
 
 本项目使用字节跳动的 Doubao-1.5-vision-pro-32k 来解决选择题和部分填空题。
-> 无广，问就是便宜而且效果好
+> 无广，问就是便宜而且效果不错
 
 先到 [火山引擎](https://www.volcengine.com/) 注册账号并实名
 
@@ -109,6 +109,6 @@ python main.py
 
 ## 许可
 
-基于本项目使用的 [PySide6](https://pypi.org/project/PySide6/) 和 [MaaFramework](https://pypi.org/project/MaaFw/) ，本项目采用 [AGPLv3协议](https://github.com/ravizhan/MaaXuexi/blob/main/LICENSE) 开源
+基于本项目使用的 [MaaFramework](https://pypi.org/project/MaaFw/) ，本项目采用 [AGPLv3协议](https://github.com/ravizhan/MaaXuexi/blob/main/LICENSE) 开源
 
 **本项目完全免费，严禁倒卖或用于盈利目的**
