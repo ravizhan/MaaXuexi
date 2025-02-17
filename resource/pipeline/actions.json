@@ -38,7 +38,7 @@
     "recognition": "TemplateMatch",
     "template": "../image/每日答题.png",
     "roi" : [0,330,720,950],
-    "target_offset": [45,15,0,0],
+    "target_offset": [20,5,0,0],
     "action": "Click"
   },
   "填空题": {

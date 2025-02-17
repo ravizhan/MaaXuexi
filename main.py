@@ -1,3 +1,4 @@
+import json
 import time
 from random import randint
 
@@ -42,7 +43,9 @@ def main():
         print("Failed to init MAA.")
         exit()
 
-    ai_resolver = AIResolver(api_key="", endpoint="")
+    with open("config/config.json") as f:
+        config = json.load(f)
+    ai_resolver = AIResolver(api_key=config["api_key"], endpoint=config["endpoint"])
     model = ONNXModel()
 
     finished_article = []
@@ -53,12 +56,12 @@ def main():
         # 识别文章，获取点击文章的坐标范围
         image = tasker.controller.post_screencap().wait().get()
         boxes, box_class = model.detect(image)
-        boxes, box_class = zip(*[(box, cls) for box, cls in zip(boxes, box_class) if cls in ["article", "article_image"]])
         # cv2.imwrite(f"./img_origin/{int(time.time())}.jpg", image)
         # 没有文章就滑动屏幕
-        if len(boxes) == 0:
+        if len(boxes) == 0 or ("article" not in box_class and "article_image" not in box_class):
             tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600), randint(300, 400),randint(1000, 1500)).wait()
             continue
+        boxes, box_class = zip(*[(box, cls) for box, cls in zip(boxes, box_class) if cls in ["article", "article_image"]])
         article_list = []
         for box in boxes:
             cv2.rectangle(image, (box[0], box[1]), (box[0] + box[2], box[1] + box[3]), (0, 255, 0), 2)
@@ -88,11 +91,11 @@ def main():
         # 识别视频，获取点击视频的坐标范围
         image = tasker.controller.post_screencap().wait().get()
         boxes, box_class = model.detect(image)
-        boxes, box_class = zip(*[(box, cls) for box, cls in zip(boxes, box_class) if cls in ["video"]])
         # 没有视频就滑动屏幕
-        if len(boxes) == 0:
+        if len(boxes) == 0 or "video" not in box_class:
             tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600), randint(300, 400),randint(1000, 1500)).wait()
             continue
+        boxes, box_class = zip(*[(box, cls) for box, cls in zip(boxes, box_class) if cls in ["video"]])
         video_list = []
         for box in boxes:
             cv2.rectangle(image, (box[0], box[1]), (box[0] + box[2], box[1] + box[3]), (0, 255, 0), 2)

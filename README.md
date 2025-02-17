@@ -10,7 +10,7 @@
 <p align="center">
   <img alt="license" src="https://img.shields.io/github/license/ravizhan/MaaXuexi">
   <img alt="Python" src="https://img.shields.io/badge/Python 3.12-3776AB?logo=python&logoColor=white">
-  <img alt="Auther" src="https://img.shields.io/badge/made%20by-ravi-127fca">
+  <img alt="Auther" src="https://img.shields.io/badge/code%20by-ravi-127fca">
 </p>
 
 <div align="center">
@@ -34,12 +34,13 @@
 
 - [x] 阅读文章 稳定刷满12分
 - [x] 观看视频 大概率7分 小概率12分
-- [x] 每日答题 应该能用(?) 遇到BUG请即时反馈
+- [x] 每日答题 只要AI不抽风，大概率5分
 - [ ] 趣味答题 开发中️ 🛠️
+- [ ] webui界面 开发中️ 🛠️
 
 ## 环境要求
 
-- Python 3
+- Python 3.10 +
 
 - 安卓模拟器或真机
 
@@ -74,13 +75,13 @@
 
 **关于费用**
 
-调用一次AI大概消耗1300tokens，其中输出tokens极少，可忽略不计
+调用一次AI大概消耗1600tokens，其中输出tokens极少，可忽略不计
 
-按照每日答题5道题，趣味答题5道题计算，一个月大约消耗40万tokens
+按照每日答题5道题，趣味答题5道题计算，一个月大约消耗47万tokens
 
 ![image-20250123173430035](https://img.ravi.top/img/fe6872c6b3e67b5124237bed9be4fc73.png)
 
-一个月费用在1.2元左右
+一个月费用在1.4元左右
 
 此外，火山引擎注册即送50万tokens免费推理额度，足够免费使用1个月
 
@@ -95,10 +96,13 @@ git clone https://github.com/ravizhan/MaaXuexi
 cd MaaXuexi
 pip install -r requirements.txt
 ```
-编辑 `main.py` 第45行，粘贴API Key和endpoint
+编辑 `config/config.json` ，粘贴API Key和endpoint
 
-``` python
-ai_resolver = AIResolver(api_key="", endpoint="")
+``` json
+{
+  "api_key": "",
+  "endpoint": ""
+}
 ```
 
 运行
