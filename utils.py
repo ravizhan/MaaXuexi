@@ -1,9 +1,10 @@
 import base64
 import time
-import numpy as np
-import onnxruntime
+
 import cv2
 import httpx
+import numpy as np
+import onnxruntime
 
 
 def match_sift_flann(image1, image2):
@@ -128,15 +129,14 @@ class ONNXModel:
 
 
 class AIResolver:
-    def __init__(self, api_key, endpoint):
-        self.endpoint = endpoint
+    def __init__(self, api_key):
         self.session = httpx.Client()
         self.session.headers = {"Authorization": f"Bearer {api_key}"}
 
     def resolve_choice(self, img1: np.ndarray, img2: np.ndarray) -> list[str] | None:
         url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
         data = {
-            "model": self.endpoint,
+            "model": "doubao-1-5-vision-pro-32k-250115",
             "messages": [
                 {
                     "role": "system",

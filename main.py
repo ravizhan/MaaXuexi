@@ -45,7 +45,7 @@ def main():
 
     with open("config/config.json") as f:
         config = json.load(f)
-    ai_resolver = AIResolver(api_key=config["api_key"], endpoint=config["endpoint"])
+    ai_resolver = AIResolver(api_key=config["api_key"])
     model = ONNXModel()
 
     finished_article = []
@@ -84,6 +84,10 @@ def main():
                 tasker.post_task("返回").wait()
                 time.sleep(randint(3, 5))
                 finished_article.append(article_list[i])
+            if reading_time >= 400:
+                break
+        if reading_time >= 400:
+            break
         tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),randint(300, 400),randint(1000, 1500)).wait()
     tasker.post_task("电视台").wait()
     time.sleep(randint(3, 5))
@@ -115,6 +119,10 @@ def main():
                 tasker.post_task("返回2").wait()
                 time.sleep(randint(3, 5))
                 finished_video.append(video_list[i])
+            if waiting_time >= 400:
+                break
+        if waiting_time >= 400:
+            break
         tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),randint(300, 400), randint(1000, 1500)).wait()
     tasker.post_task("积分").wait()
     # 等待界面加载完毕
