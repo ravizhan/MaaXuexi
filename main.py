@@ -1,7 +1,7 @@
 import json
 import time
 from random import randint
-
+import sys
 import cv2
 from maa.define import TaskDetail
 from maa.resource import Resource
@@ -23,7 +23,8 @@ def main():
     adb_devices = Toolkit.find_adb_devices()
     if not adb_devices:
         print("No ADB device found.")
-        exit()
+        input("按任意键退出")
+        sys.exit()
 
     # for demo, we just use the first device
     device = adb_devices[0]
@@ -233,6 +234,7 @@ def main():
         )
         print("发现验证码，请求接管")
         input("按任意键继续")
+    input("全部任务完成，按任意键退出")
 
 
 if __name__ == "__main__":
