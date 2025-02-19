@@ -26,17 +26,10 @@ jobs:
           architecture: 'x64'
 
       - name: Install Dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-extras --dev
 
       - name: Build Executable
-        uses: Nuitka/Nuitka-Action@main
-        with:
-          nuitka-version: main
-          script-name: main.py
-          mode: standalone
-          output-dir: build
-          enable-console: true
-          include-data-dir: config=config
+        run: uv run python -m nuitka --standalone --windows-console-mode=force --output-dir build/main.dist/ --include-data-dir=config=config main.py
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4

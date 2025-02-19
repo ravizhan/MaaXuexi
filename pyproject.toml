@@ -14,3 +14,8 @@ dependencies = [
 ]
 [[tool.uv.index]]
 url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+
+[dependency-groups]
+dev = [
+    "nuitka>=2.6.6",
+]
