@@ -1,5 +1,5 @@
 name: GitHub Actions Build
-run-name: Building for ${{ github.ref }}
+run-name: Building for ${{ github.sha }}
 on: [push]
 jobs:
   build:
@@ -17,7 +17,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          cache-dependency-glob: "uv.lock"
+          cache-dependency-glob: 'uv.lock'
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -34,19 +34,13 @@ jobs:
           nuitka-version: main
           script-name: main.py
           mode: standalone
-          output-dir: build/${{ runner.os }}
+          output-dir: build
           enable-console: true
-
-      - name: Archive Building
-        uses: thedoctor0/zip-release@0.7.5
-        with:
-          type: 'zip'
-          filename: 'release-${{ runner.os }}.zip'
-          path: 'build/${{ runner.os }}'
+          include-data-dir: config=config
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ runner.os }} Build
-          path: 'release-${{ runner.os }}.zip'
+          path: build/main.dist/
           include-hidden-files: true
