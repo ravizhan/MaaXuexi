@@ -1,0 +1,16 @@
+- module-name: maa
+  implicit-imports:
+    - depends:
+      - 'MaaAgentBinary'
+  dlls:
+    - from_filenames: 
+        relative_path: 'bin'
+        prefixes:
+          - '*'
+
+- module-name: MaaAgentBinary
+  dest_path: 'MaaAgentBinary'
+  data-files:
+    dirs:
+      - 'maatouch'
+      - 'minitouch'

@@ -3,6 +3,8 @@ run-name: Building for ${{ github.sha }}
 on: [push]
 jobs:
   build:
+    env:
+      UV_INDEX: https://pypi.org/simple
     strategy:
       matrix:
         os: [ macos-latest, ubuntu-latest, windows-latest ]
@@ -17,23 +19,34 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          cache-dependency-glob: 'uv.lock'
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version-file: "pyproject.toml"
-          architecture: 'x64'
 
       - name: Install Dependencies
         run: uv sync --all-extras --dev
 
       - name: Build Executable
-        run: uv run python -m nuitka --standalone --windows-console-mode=force --assume-yes-for-downloads --enable-plugin=numpy --include-data-dir=config=config --include-data-dir=.venv/Lib/site-packages/maa/bin=maa/bin --include-data-dir=.venv/Lib/site-packages/MaaAgentBinary=MaaAgentBinary --include-data-dir=resource=resource main.py
+        run: uv run python -m nuitka --standalone --windows-console-mode=force --assume-yes-for-downloads --user-package-configuration-file=nuitka-package.config.yml --remove-output --lto=yes --output-dir=build -o MaaXuexi main.py
+
+      - name: Copy Resource Linux Macos
+        if: ${{ matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest' }}
+        run: |
+          cp -r resource build/main.dist/resource
+          cp -r config build/main.dist/config
+
+      - name: Copy Resource Windows
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          xcopy .\resource\ build\main.dist\resource\ /S /I
+          xcopy .\config\ build\main.dist\config\ /S /I
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ runner.os }} Build
-          path: build/main.dist/
+          path: build/main.dist
+          compression-level: '9'
           include-hidden-files: true
