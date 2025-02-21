@@ -6,6 +6,13 @@
     "threshold": 0.4,
     "action": "Click"
   },
+  "综合": {
+    "recognition": "TemplateMatch",
+    "template": "../image/综合.png",
+    "roi" : [427,107,87,67],
+    "threshold": 0.9,
+    "action": "Click"
+  },
   "电视台": {
     "recognition": "TemplateMatch",
     "template": "../image/电视台.png",
@@ -38,7 +45,8 @@
     "recognition": "TemplateMatch",
     "template": "../image/每日答题.png",
     "roi" : [0,330,720,950],
-    "target_offset": [20,5,0,0],
+    "target_offset": [10,-20,0,0],
+    "threshold": 0.9,
     "action": "Click"
   },
   "填空题": {

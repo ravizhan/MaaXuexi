@@ -53,6 +53,8 @@ def main():
     reading_time = 0
     finished_video = []
     waiting_time = 0
+    tasker.post_task("综合").wait()
+    time.sleep(2)
     while reading_time < 400:
         # 识别文章，获取点击文章的坐标范围
         image = tasker.controller.post_screencap().wait().get()
@@ -174,6 +176,7 @@ def main():
                 find_result: TaskDetail = tasker.post_task("find_red").wait().get()
                 red_border = find_result.nodes[0].recognition.best_result.box
                 # print(red_border)
+                # TODO: 无法跨行识别
                 rec_result: TaskDetail = tasker.post_task("rec_answer", {"rec_answer":{"roi": red_border}}).wait().get()
                 answer = rec_result.nodes[0].recognition.best_result.text
                 tasker.post_task("关闭提示").wait()

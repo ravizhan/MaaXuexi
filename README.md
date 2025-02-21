@@ -79,15 +79,8 @@
 
 ### 项目配置
 
-克隆本项目到本地 或 [直接下载zip包](https://github.com/ravizhan/MaaXuexi/archive/refs/heads/main.zip)
-``` bash
-git clone https://github.com/ravizhan/MaaXuexi
-```
-安装依赖
-``` bash
-cd MaaXuexi
-pip install -r requirements.txt
-```
+请到 [releases](https://github.com/ravizhan/MaaXuexi/releases) 页面下载对应系统的压缩包，并解压。
+
 编辑 `config/config.json` ，粘贴API Key
 
 ``` json
@@ -96,11 +89,13 @@ pip install -r requirements.txt
 }
 ```
 
-运行
+### 运行
+#### windows
+双击 `MaaXuexi.exe` 即可运行
+#### linux/macos
+> **注意**: linux/macos均未进行测试，如有BUG请即时通过 [Issue](https://github.com/ravizhan/MaaXuexi/issues) 反馈
 
-``` bash
-python main.py
-```
+使用终端运行 `MaaXuexi.bin` 即可
 
 ## 许可
 

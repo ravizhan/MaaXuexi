@@ -1,6 +1,8 @@
 name: GitHub Actions Build
 run-name: Building for ${{ github.sha }}
-on: [push]
+on:
+  release:
+    types: [ released ]
 jobs:
   build:
     env:
@@ -43,10 +45,14 @@ jobs:
           xcopy .\resource\ build\main.dist\resource\ /S /I
           xcopy .\config\ build\main.dist\config\ /S /I
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Compress Build
+        run: 7z a -t7z -mx=9 -mmt -ms -r MaaXuexi-${{ matrix.os }}-${{ github.sha }}.7z "./build/main.dist/*"
+
+      - name: Upload Artifacts To Cloudflare
+        uses: magicwallet/r2-upload@main
         with:
-          name: ${{ runner.os }} Build
-          path: build/main.dist
-          compression-level: '9'
-          include-hidden-files: true
+          endpoint: ${{ secrets.R2_ENDPOINT }}
+          access_key_id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          secret_access_key: ${{ secrets.R2_ACCESS_SECRET_KEY }}
+          bucket: maaxuexi
+          file: ./MaaXuexi-${{ matrix.os }}-${{ github.sha }}.7z
