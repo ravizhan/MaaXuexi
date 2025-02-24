@@ -1,5 +1,5 @@
 name: GitHub Actions Build
-run-name: Building for ${{ github.sha }}
+run-name: Building for ${{ github.ref_name }}
 on:
   release:
     types: [ released ]
