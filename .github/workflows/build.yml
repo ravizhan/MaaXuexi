@@ -1,13 +1,15 @@
 name: GitHub Actions Build
 run-name: Building for ${{ github.ref_name }}
 on:
-  release:
-    types: [ released ]
+  push:
+    tags:
+      - "v*.*.*"
 jobs:
   build:
     env:
       UV_INDEX: https://pypi.org/simple
     strategy:
+      fail-fast: false
       matrix:
         os: [ macos-latest, ubuntu-latest, windows-latest ]
 
@@ -45,8 +47,22 @@ jobs:
           xcopy .\resource\ build\main.dist\resource\ /S /I
           xcopy .\config\ build\main.dist\config\ /S /I
 
+      - name: Determine OS Name
+        run: |
+          case ${{ matrix.os }} in
+            windows-latest)
+              echo SHORT_OS_NAME=windows >> $GITHUB_ENV
+              ;;
+            macos-latest)
+              echo SHORT_OS_NAME=macos >> $GITHUB_ENV
+              ;;
+            ubuntu-latest)
+              echo SHORT_OS_NAME=linux >> $GITHUB_ENV
+              ;;
+          esac
+
       - name: Compress Build
-        run: 7z a -t7z -mx=9 -mmt -ms -r MaaXuexi-${{ matrix.os }}-${{ github.sha }}.7z "./build/main.dist/*"
+        run: 7z a -t7z -mx=9 -mmt -ms -r MaaXuexi-${{ env.SHORT_OS_NAME }}-${{ github.ref_name }}.7z "./build/main.dist/*"
 
       - name: Upload Artifacts To Cloudflare
         uses: magicwallet/r2-upload@main
@@ -55,4 +71,11 @@ jobs:
           access_key_id: ${{ secrets.R2_ACCESS_KEY_ID }}
           secret_access_key: ${{ secrets.R2_ACCESS_SECRET_KEY }}
           bucket: maaxuexi
-          file: ./MaaXuexi-${{ matrix.os }}-${{ github.sha }}.7z
+          file: ./MaaXuexi-${{ env.SHORT_OS_NAME }}-${{ github.ref_name }}.7z
+
+      - name: Release
+        uses: ncipollo/release-action@v1.16.0
+        with:
+          draft: true
+          artifacts: |
+            MaaXuexi-${{ env.SHORT_OS_NAME }}-${{ github.ref_name }}.7z
