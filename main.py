@@ -1,4 +1,5 @@
 import json
+import subprocess
 import time
 from random import randint
 import sys
@@ -49,6 +50,24 @@ def main():
     ai_resolver = AIResolver(api_key=config["api_key"])
     model = ONNXModel()
 
+    # result = tasker.post_task("test").wait().get()
+    # print(result)
+    # return
+    size = subprocess.run([device.adb_path, "shell", "wm", "size"], text=True, capture_output=True).stdout
+    size = size.strip().split(": ")[1]
+    dpi = subprocess.run([device.adb_path, "shell", "wm", "density"], text=True, capture_output=True).stdout
+    dpi = dpi.strip().split(": ")[1]
+    # print(size,dpi)
+    if size != "720x1280" or dpi != "240":
+        subprocess.run([device.adb_path, "shell", "wm", "size", "720x1280"], text=True, capture_output=True)
+        subprocess.run([device.adb_path, "shell", "wm", "density", "240"], text=True, capture_output=True)
+
+        size = subprocess.run([device.adb_path, "shell", "wm", "size"], text=True, capture_output=True).stdout
+        size = size.strip().split(": ")[1]
+        dpi = subprocess.run([device.adb_path, "shell", "wm", "density"], text=True, capture_output=True).stdout
+        dpi = dpi.strip().split(": ")[1]
+        print(size, dpi)
+
     finished_article = []
     reading_time = 0
     finished_video = []
@@ -70,11 +89,11 @@ def main():
             cv2.rectangle(image, (box[0], box[1]), (box[0] + box[2], box[1] + box[3]), (0, 255, 0), 2)
             img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
             article_list.append(img)
-        cv2.imwrite("result.jpg", image)
+        # cv2.imwrite("result.jpg", image)
         a = 0
         for i in range(len(box_class)):
             if all(match_sift_flann(article_list[i], img2)[1] <= 0.7 for img2 in finished_article):
-                cv2.imwrite(f"read_{len(finished_article)}.jpg", article_list[i])
+                # cv2.imwrite(f"read_{len(finished_article)}.jpg", article_list[i])
                 print(f"read_{len(finished_article)}")
                 tasker.controller.post_click(boxes[i][0]+150, boxes[i][1]+10)
                 time.sleep(3)
@@ -108,11 +127,11 @@ def main():
             cv2.rectangle(image, (box[0], box[1]), (box[0] + box[2], box[1] + box[3]), (0, 255, 0), 2)
             img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
             video_list.append(img)
-        cv2.imwrite("result.jpg", image)
+        # cv2.imwrite("result.jpg", image)
         a = 0
         for i in range(len(box_class)):
             if all(match_sift_flann(video_list[i], img2)[1] <= 0.7 for img2 in finished_video):
-                cv2.imwrite(f"video_{len(finished_video)}.jpg", video_list[i])
+                # cv2.imwrite(f"video_{len(finished_video)}.jpg", video_list[i])
                 print(f"video_{len(finished_video)}")
                 tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
                 time.sleep(3)

@@ -58,6 +58,8 @@
 - 安卓模拟器或真机
 
   安卓模拟器推荐使用 [雷电模拟器](https://www.ldmnq.com/) 或 [MuMu 模拟器 12](https://mumu.163.com/)
+  
+  请将模拟器分辨率设置为 1280x720 DPI 240
 
   真机暂未进行测试，请**谨慎使用**
 
@@ -94,7 +96,7 @@
 
 请到 [releases](https://github.com/ravizhan/MaaXuexi/releases) 页面下载对应系统的压缩包，并解压。
 
-编辑 `config/config.json` ，粘贴API Key
+用记事本打开 `config` 文件夹中的 `config.json` ，粘贴API Key
 
 ``` json
 {
@@ -103,7 +105,12 @@
 ```
 
 ### 运行
+请先运行安卓模拟器，手动打开并登录学习强国APP
+
+**如果是第一次运行，请先手动点开各个板块，确保APP不会弹出新手引导**
 #### windows
+下载安装 [vc_redist](https://aka.ms/vs/17/release/vc_redist.x64.exe)
+
 双击 `MaaXuexi.exe` 即可运行
 #### linux/macos
 > **注意**: linux/macos均未进行测试，如有BUG请即时通过 [Issue](https://github.com/ravizhan/MaaXuexi/issues) 反馈

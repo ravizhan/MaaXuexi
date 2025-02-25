@@ -80,7 +80,7 @@ def letterbox(img, new_shape, color=(114, 114, 114)):
 
 class ONNXModel:
     def __init__(self):
-        self.session = onnxruntime.InferenceSession("resource/model/yolo/yolo.onnx")
+        self.session = onnxruntime.InferenceSession("resource/model/detect/yolo.onnx")
         self.model_input = self.session.get_inputs()
         self.classes = {0: 'article', 1: 'article_image', 2: 'article_image_big', 3: 'video', 4: 'video_big'}
 
