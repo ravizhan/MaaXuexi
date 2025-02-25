@@ -1,0 +1,32 @@
+html,body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+#app {
+  height: 100%;
+}
+.col-name {
+  text-align: center;
+  margin: 0.5rem 0 0.5rem 0;
+  font-size: 1.25rem;
+  font-weight: bolder;
+}
+.log {
+  margin-top: 1rem;
+  border: 2px solid #efeff5;
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+.header {
+  height: 3rem;
+  padding: 5px 10px 5px 10px;
+}
+.content {
+  padding: 0 5rem 0 5rem;
+  height: calc(100vh - 3rem);
+}
+.form-btn {
+  text-align: center;
+  padding-top: 5%;
+}

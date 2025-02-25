@@ -165,3 +165,4 @@ cython_debug/
 img_origin/
 debug/
 node_modules/
+page/

@@ -1,6 +1,6 @@
 [project]
 name = "MaaXuexi"
-version = "0.1.0"
+version = "1.1.0"
 description = "基于全新架构的 学习强国 自动化助手。图像技术 + 模拟控制，解放双手！由 MaaFramework 强力驱动！"
 requires-python = ">=3.10"
 dependencies = [
