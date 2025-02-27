@@ -5,7 +5,32 @@ on:
     tags:
       - "v*.*.*"
 jobs:
-  build:
+  npm-build:
+    runs-on: ubuntu-latest
+    outputs:
+      cache-primary-key: ${{ steps.Cache.outputs.cache-primary-key }}
+    steps:
+      - name: Check-out repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Executable
+        run: npm run build
+
+      - name: Cache
+        uses: actions/cache@v4.2.1
+        with:
+          path: page
+          key: frontpage-dist-${{ hashFiles('dist/**') }}
+
+  nuitka-build:
     env:
       UV_INDEX: https://pypi.org/simple
     strategy:
@@ -14,10 +39,17 @@ jobs:
         os: [ macos-latest, ubuntu-latest, windows-latest ]
 
     runs-on: ${{ matrix.os }}
+    needs: npm-build
 
     steps:
       - name: Check-out repository
         uses: actions/checkout@v4
+
+      - name: Restore cached frontend artifacts
+        uses: actions/cache@v4.2.1
+        with:
+          path: page
+          key: ${{ needs.npm-build.outputs.cache-primary-key }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
