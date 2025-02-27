@@ -103,11 +103,11 @@ async def websocket_endpoint(websocket: websockets.WebSocket):
         if not app_state.message_conn.empty():
             data = app_state.message_conn.get_nowait()
             app_state.history_message.append(data)
-            if data == "所有任务完成":
+            if "所有任务完成" in data:
                 app_state.child_process.join()
                 # 重置状态
                 app_state.child_process = None
-                app_state.history_message = []
+                # app_state.history_message = []
                 await websocket.send_text(data)
                 await websocket.close()
                 break
