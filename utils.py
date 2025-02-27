@@ -1,10 +1,18 @@
 import base64
 import time
+from queue import SimpleQueue
+from random import randint
 
 import cv2
 import httpx
 import numpy as np
 import onnxruntime
+import plyer
+from maa.controller import AdbController
+from maa.define import TaskDetail
+from maa.resource import Resource
+from maa.tasker import Tasker
+from maa.toolkit import Toolkit
 
 
 def match_sift_flann(image1, image2):
@@ -206,3 +214,280 @@ class AIResolver:
         except:
             answer = None
         return answer
+
+
+class MaaWorker:
+    def __init__(self, queue: SimpleQueue, api_key):
+        user_path = "./"
+        Toolkit.init_option(user_path)
+
+        self.queue = queue
+        self.resource = Resource()
+        self.resource.set_cpu()
+        self.resource.post_bundle("./resource").wait()
+        self.tasker = Tasker()
+        self.connected = False
+        self.ai_resolver = AIResolver(api_key=api_key)
+        self.model = ONNXModel()
+
+        self.send_log("MAA初始化成功")
+
+    def send_log(self,msg):
+        self.queue.put(f"{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())} {msg}")
+
+    @staticmethod
+    def get_device():
+        adb_devices = []
+        for device in Toolkit.find_adb_devices():
+            # 这两个字段的数字在JS里会整数溢出，转为字符串处理
+            device.input_methods = str(device.input_methods)
+            device.screencap_methods = str(device.screencap_methods)
+            if device not in adb_devices:
+                adb_devices.append(device)
+        return adb_devices
+
+    def connect_device(self, device):
+        controller = AdbController(
+            adb_path=device.adb_path,
+            address=device.address,
+            screencap_methods=device.screencap_methods,
+            input_methods=device.input_methods,
+            config=device.config,
+        )
+        status = controller.post_connection().wait().succeeded
+        if not status:
+            self.send_log("设备连接失败，请检查终端日志")
+            return self.connected
+        if self.tasker.bind(self.resource, controller):
+            self.connected = True
+            # size = subprocess.run([device.adb_path, "shell", "wm", "size"], text=True, capture_output=True).stdout
+            # size = size.strip().split(": ")[1]
+            # dpi = subprocess.run([device.adb_path, "shell", "wm", "density"], text=True, capture_output=True).stdout
+            # dpi = dpi.strip().split(": ")[1]
+            # print(size,dpi)
+            self.send_log("设备连接成功")
+        else:
+            self.send_log("设备连接失败，请检查终端日志")
+        return self.connected
+
+    def task(self, tasks):
+        self.send_log("任务开始")
+        try:
+            for task in tasks:
+                if task == "选读文章":
+                    self.read_article()
+                elif task == "视听学习":
+                    self.watch_video()
+                elif task == "每日答题":
+                    self.daily_answer()
+                elif task == "趣味答题":
+                    self.funny_answer()
+        except:
+            self.send_log("任务出现异常，请检查终端日志")
+            self.send_log("请将日志反馈至 https://github.com/ravizhan/MaaXuexi/issues")
+        self.send_log("所有任务完成")
+        time.sleep(0.5)
+
+    def read_article(self):
+        self.send_log("开始任务：选读文章")
+        finished_article = []
+        reading_time = 0
+        while reading_time < 400:
+            # 识别文章，获取点击文章的坐标范围
+            image = self.tasker.controller.post_screencap().wait().get()
+            boxes, box_class = self.model.detect(image)
+            cv2.imwrite(f"./img_origin/{int(time.time())}.jpg", image)
+            # 没有文章就滑动屏幕
+            if len(boxes) == 0 or ("article" not in box_class and "article_image" not in box_class):
+                self.send_log(f"未识别到文章，正在滑动屏幕")
+                self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
+                                             randint(300, 400),
+                                             randint(1000, 1500)).wait()
+                continue
+            boxes, box_class = zip(*[(box, cls) for box, cls in zip(boxes, box_class) if cls in ["article", "article_image"]])
+            self.send_log(f"识别到{len(boxes)}篇文章")
+            article_list = []
+            for box in boxes:
+                cv2.rectangle(image, (box[0], box[1]), (box[0] + box[2], box[1] + box[3]), (0, 255, 0), 2)
+                img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
+                article_list.append(img)
+            cv2.imwrite("result.jpg", image)
+            for i in range(len(box_class)):
+                if all(match_sift_flann(article_list[i], img2)[1] <= 0.7 for img2 in finished_article):
+                    cv2.imwrite(f"read_{len(finished_article)}.jpg", article_list[i])
+                    self.send_log(f"read_{len(finished_article)}")
+                    self.tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
+                    time.sleep(3)
+                    for _ in range(5):
+                        self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),randint(300, 400), randint(1000, 1500)).wait()
+                        t = randint(8, 10)
+                        time.sleep(t)
+                        reading_time += t
+                    time.sleep(1)
+                    self.tasker.post_task("返回").wait()
+                    time.sleep(randint(3, 5))
+                    finished_article.append(article_list[i])
+            self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
+                                         randint(300, 400), randint(1000, 1500)).wait()
+        self.send_log("选读文章任务完成")
+
+    def watch_video(self):
+        self.send_log("开始任务：视听学习")
+        finished_video = []
+        waiting_time = 0
+        self.tasker.post_task("电视台").wait()
+        time.sleep(randint(3, 5))
+        while waiting_time < 400:
+            # 识别视频，获取点击视频的坐标范围
+            image = self.tasker.controller.post_screencap().wait().get()
+            boxes, box_class = self.model.detect(image)
+            # 没有视频就滑动屏幕
+            if len(boxes) == 0 or "video" not in box_class:
+                self.send_log(f"未识别到视频，正在滑动屏幕")
+                self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
+                                             randint(300, 400),
+                                             randint(1000, 1500)).wait()
+                continue
+            boxes, box_class = zip(*[(box, cls) for box, cls in zip(boxes, box_class) if cls in ["video"]])
+            self.send_log(f"识别到{len(boxes)}个视频")
+            video_list = []
+            for box in boxes:
+                cv2.rectangle(image, (box[0], box[1]), (box[0] + box[2], box[1] + box[3]), (0, 255, 0), 2)
+                img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
+                video_list.append(img)
+            cv2.imwrite("result.jpg", image)
+            for i in range(len(box_class)):
+                if all(match_sift_flann(video_list[i], img2)[1] <= 0.7 for img2 in finished_video):
+                    cv2.imwrite(f"video_{len(finished_video)}.jpg", video_list[i])
+                    self.send_log(f"video_{len(finished_video)}")
+                    self.tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
+                    time.sleep(3)
+                    t = randint(50, 70)
+                    time.sleep(t)
+                    waiting_time += t
+                    self.tasker.post_task("返回2").wait()
+                    time.sleep(randint(3, 5))
+                    finished_video.append(video_list[i])
+            self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),randint(300, 400), randint(1000, 1500)).wait()
+        self.send_log("视听学习任务完成")
+
+    def daily_answer(self):
+        self.send_log("开始任务：每日答题")
+        self.tasker.post_task("积分").wait()
+        # 等待界面加载完毕
+        time.sleep(10)
+        load_result: TaskDetail = self.tasker.post_task("加载失败").wait().get()
+        while not load_result.nodes:
+            self.send_log("积分界面加载失败，正在重试")
+            self.tasker.post_task("返回").wait()
+            self.tasker.post_task("积分").wait()
+            time.sleep(10)
+            load_result: TaskDetail = self.tasker.post_task("加载失败").wait().get()
+        self.send_log("加载成功")
+        # 滑动到每日答题按钮
+        self.tasker.controller.post_swipe(randint(200, 300), randint(1000, 1100), randint(500, 600), randint(100, 200),
+                                     randint(1000, 1500)).wait()
+        time.sleep(randint(1, 2))
+        # 点击每日答题按钮
+        self.tasker.post_task("每日答题").wait()
+        self.send_log("开始答题")
+        # 等待界面加载完毕
+        time.sleep(5)
+        # 开始答题
+        for i in range(5):
+            # 判断是不是填空题
+            recog_result: TaskDetail = self.tasker.post_task("填空题").wait().get()  # 单选题和填空题相似度竟然有0.75，离谱
+            if not recog_result.nodes:
+                self.send_log(f"第{i}题 填空题")
+                recog_result: TaskDetail = self.tasker.post_task("填空题视频").wait().get()
+                # 判断有没有视频，有的话调用AI解答
+                if not recog_result.nodes:
+                    self.send_log("发现视频，正在请求AI解答")
+                    # 截图
+                    image = self.tasker.controller.post_screencap().wait().get()
+                    # AI解答
+                    answer = self.ai_resolver.resolve_blank(image)
+                    if answer is None:
+                        plyer.notification.notify(
+                            title="MaaXuexi",
+                            message="AI解答失败，请求接管",
+                            app_name="MAA",
+                            timeout=0
+                        )
+                        self.send_log("AI解答失败, 请求接管")
+                        #TODO 网页弹窗，pipe传递
+                        input("完成该题后, 按任意键继续")
+                        continue
+                else:
+                    self.send_log("查看提示")
+                    self.tasker.post_task("查看提示").wait()
+                    time.sleep(1)
+                    find_result: TaskDetail = self.tasker.post_task("find_red").wait().get()
+                    red_border = find_result.nodes[0].recognition.best_result.box
+                    # self.send_log(red_border)
+                    rec_result: TaskDetail = self.tasker.post_task("rec_answer",{"rec_answer": {"roi": red_border}}).wait().get()
+                    answer = rec_result.nodes[0].recognition.best_result.text
+                    self.tasker.post_task("关闭提示").wait()
+                time.sleep(1)
+                self.send_log(f"正在输入 {answer}")
+                self.tasker.post_task("文本框点击").wait()
+                time.sleep(0.5)
+                self.tasker.controller.post_input_text(answer).wait()
+                self.send_log("输入完成")
+            else:
+                self.send_log(f"第{i}题 选择题")
+                # 问题截图
+                img1 = self.tasker.controller.post_screencap().wait().get()
+                # 答案截图
+                self.tasker.post_task("查看提示").wait()
+                time.sleep(1)
+                img2 = self.tasker.controller.post_screencap().wait().get()
+                self.tasker.post_task("关闭提示").wait()
+                img2 = img2[500:1280, 0:720]
+                time.sleep(1)
+                # AI解答
+                answer = self.ai_resolver.resolve_choice(img1, img2)
+                if answer is None:
+                    plyer.notification.notify(
+                        title="MaaXuexi",
+                        message="AI解答失败，请求接管",
+                        app_name="MAA",
+                        timeout=0
+                    )
+                    self.send_log("AI解答失败, 请求接管")
+                    # TODO 网页弹窗，pipe传递
+                    input("完成该题后, 按任意键继续")
+                    continue
+                self.send_log(f"AI解答成功，答案为{''.join(answer)}")
+                for i in answer:
+                    if i == "A":
+                        self.tasker.post_task("选A").wait()
+                    elif i == "B":
+                        self.tasker.post_task("选B").wait()
+                    elif i == "C":
+                        self.tasker.post_task("选C").wait()
+                    elif i == "D":
+                        self.tasker.post_task("选D").wait()
+                    time.sleep(0.2)
+            time.sleep(0.5)
+            # 下一题
+            self.tasker.post_task("下一题").wait()
+            time.sleep(randint(2, 3))
+        # 结束答题，大概率会弹验证码
+        time.sleep(2)
+        recog_result: TaskDetail = self.tasker.post_task("访问异常").wait().get()
+        if not recog_result.nodes:
+            plyer.notification.notify(
+                title="MaaXuexi",
+                message="发现验证码，请求接管",
+                app_name="MAA",
+                timeout=0
+            )
+            self.send_log("发现验证码，请求接管")
+            # TODO 网页弹窗，pipe传递
+            input("按任意键继续")
+
+
+    def funny_answer(self):
+        self.send_log("开始任务：趣味答题")
+        pass
