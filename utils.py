@@ -6,7 +6,6 @@ from random import randint
 import cv2
 import httpx
 import numpy as np
-import onnxruntime
 import plyer
 from maa.controller import AdbController
 from maa.define import TaskDetail
@@ -86,54 +85,55 @@ def letterbox(img, new_shape, color=(114, 114, 114)):
     return img, (r, r), (dw, dh)
 
 
-class ONNXModel:
-    def __init__(self):
-        self.session = onnxruntime.InferenceSession("resource/model/detect/yolo.onnx")
-        self.model_input = self.session.get_inputs()
-        self.classes = {0: 'article', 1: 'article_image', 2: 'article_image_big', 3: 'video', 4: 'video_big'}
-
-    def detect(self, img: np.ndarray):
-        img_height, img_width, _ = img.shape
-        img, ratio, (dw, dh) = letterbox(img, (736, 736))
-        image_data = np.array(img) / 255.0
-        image_data = np.transpose(image_data, (2, 0, 1))
-        image_data = np.expand_dims(image_data, axis=0).astype(np.float32)
-        t = time.time()
-        output = self.session.run(None, {self.model_input[0].name: image_data})
-        print("Inference time: ", (time.time() - t)*1000, "ms")
-        outputs = np.transpose(np.squeeze(output[0]))
-        rows = outputs.shape[0]
-        boxes, scores, class_ids = [], [], []
-        for i in range(rows):
-            classes_scores = outputs[i][4:]
-            max_score = np.amax(classes_scores)
-            if max_score >= 0.7:
-                class_id = np.argmax(classes_scores)
-                x, y, w, h = outputs[i][0], outputs[i][1], outputs[i][2], outputs[i][3]
-                # 将框调整到原始图像尺寸，考虑缩放和填充
-                x -= dw  # 移除填充
-                y -= dh
-                x /= ratio[0]  # 缩放回原图
-                y /= ratio[1]
-                w /= ratio[0]
-                h /= ratio[1]
-                left = int(x - w / 2)
-                top = int(y - h / 2)
-                width = int(w)
-                height = int(h)
-                boxes.append([left, top, width, height])
-                scores.append(max_score)
-                class_ids.append(self.classes[class_id.astype(int)])
-        indices = cv2.dnn.NMSBoxes(boxes, scores, 0.7, 0.7)
-        new_boxes = [boxes[i] for i in indices]
-        new_class_ids = [class_ids[i] for i in indices]
-        if not new_boxes:
-            return [], []
-        # 将list1和list2合并，并按照list1子列表的第二项排序
-        combined = sorted(zip(new_boxes, new_class_ids), key=lambda x: x[0][1])
-        # 解压排序后的结果
-        new_boxes, new_class_ids = zip(*combined)
-        return list(new_boxes), list(new_class_ids)
+# class ONNXModel:
+#     def __init__(self):
+#         self.session = onnxruntime.InferenceSession("resource/model/detect/best.onnx")
+#         self.model_input = self.session.get_inputs()
+#         self.classes = {0: 'article', 1: 'article_image', 2: 'article_image_big', 3: 'video', 4: 'video_big', 5: "video_small"}
+#
+#     def detect(self, img: np.ndarray):
+#         img_height, img_width, _ = img.shape
+#         # img, ratio, (dw, dh) = letterbox(img, (736, 736))
+#         img, ratio, (dw, dh) = letterbox(img, (1280, 704))
+#         image_data = np.array(img) / 255.0
+#         image_data = np.transpose(image_data, (2, 0, 1))
+#         image_data = np.expand_dims(image_data, axis=0).astype(np.float32)
+#         # t = time.time()
+#         output = self.session.run(None, {self.model_input[0].name: image_data})
+#         # print("Inference time: ", (time.time() - t)*1000, "ms")
+#         outputs = np.transpose(np.squeeze(output[0]))
+#         rows = outputs.shape[0]
+#         boxes, scores, class_ids = [], [], []
+#         for i in range(rows):
+#             classes_scores = outputs[i][4:]
+#             max_score = np.amax(classes_scores)
+#             if max_score >= 0.7:
+#                 class_id = np.argmax(classes_scores)
+#                 x, y, w, h = outputs[i][0], outputs[i][1], outputs[i][2], outputs[i][3]
+#                 # 将框调整到原始图像尺寸，考虑缩放和填充
+#                 x -= dw  # 移除填充
+#                 y -= dh
+#                 x /= ratio[0]  # 缩放回原图
+#                 y /= ratio[1]
+#                 w /= ratio[0]
+#                 h /= ratio[1]
+#                 left = int(x - w / 2)
+#                 top = int(y - h / 2)
+#                 width = int(w)
+#                 height = int(h)
+#                 boxes.append([left, top, width, height])
+#                 scores.append(max_score)
+#                 class_ids.append(self.classes[class_id.astype(int)])
+#         indices = cv2.dnn.NMSBoxes(boxes, scores, 0.7, 0.7)
+#         new_boxes = [boxes[i] for i in indices]
+#         new_class_ids = [class_ids[i] for i in indices]
+#         if not new_boxes:
+#             return [], []
+#         # 将list1和list2合并，并按照list1子列表的第二项排序
+#         combined = sorted(zip(new_boxes, new_class_ids), key=lambda x: x[0][1])
+#         # 解压排序后的结果
+#         new_boxes, new_class = zip(*combined)
+#         return list(new_boxes), list(new_class)
 
 
 class AIResolver:
@@ -228,7 +228,7 @@ class MaaWorker:
         self.tasker = Tasker()
         self.connected = False
         self.ai_resolver = AIResolver(api_key=api_key)
-        self.model = ONNXModel()
+        # self.model = ONNXModel()
 
         self.send_log("MAA初始化成功")
 
@@ -270,6 +270,15 @@ class MaaWorker:
             self.send_log("设备连接失败，请检查终端日志")
         return self.connected
 
+    def detect(self):
+        result: TaskDetail = self.tasker.post_task("yolo_detect").wait().get()
+        details = result.nodes[0].recognition.raw_detail["all"]
+        boxes,labels = [],[]
+        for detail in details:
+            boxes.append(detail["box"])
+            labels.append(detail["label"])
+        return list(boxes), list(labels)
+
     def task(self, tasks):
         self.send_log("任务开始")
         try:
@@ -295,8 +304,7 @@ class MaaWorker:
         while reading_time < 400:
             # 识别文章，获取点击文章的坐标范围
             image = self.tasker.controller.post_screencap().wait().get()
-            boxes, box_class = self.model.detect(image)
-            cv2.imwrite(f"./img_origin/{int(time.time())}.jpg", image)
+            boxes, box_class = self.detect()
             # 没有文章就滑动屏幕
             if len(boxes) == 0 or ("article" not in box_class and "article_image" not in box_class):
                 self.send_log(f"未识别到文章，正在滑动屏幕")
@@ -311,10 +319,8 @@ class MaaWorker:
                 cv2.rectangle(image, (box[0], box[1]), (box[0] + box[2], box[1] + box[3]), (0, 255, 0), 2)
                 img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
                 article_list.append(img)
-            cv2.imwrite("result.jpg", image)
             for i in range(len(box_class)):
                 if all(match_sift_flann(article_list[i], img2)[1] <= 0.7 for img2 in finished_article):
-                    cv2.imwrite(f"read_{len(finished_article)}.jpg", article_list[i])
                     self.send_log(f"read_{len(finished_article)}")
                     self.tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
                     time.sleep(3)
@@ -340,7 +346,7 @@ class MaaWorker:
         while waiting_time < 400:
             # 识别视频，获取点击视频的坐标范围
             image = self.tasker.controller.post_screencap().wait().get()
-            boxes, box_class = self.model.detect(image)
+            boxes, box_class = self.detect()
             # 没有视频就滑动屏幕
             if len(boxes) == 0 or "video" not in box_class:
                 self.send_log(f"未识别到视频，正在滑动屏幕")
@@ -355,10 +361,8 @@ class MaaWorker:
                 cv2.rectangle(image, (box[0], box[1]), (box[0] + box[2], box[1] + box[3]), (0, 255, 0), 2)
                 img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
                 video_list.append(img)
-            cv2.imwrite("result.jpg", image)
             for i in range(len(box_class)):
                 if all(match_sift_flann(video_list[i], img2)[1] <= 0.7 for img2 in finished_video):
-                    cv2.imwrite(f"video_{len(finished_video)}.jpg", video_list[i])
                     self.send_log(f"video_{len(finished_video)}")
                     self.tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
                     time.sleep(3)

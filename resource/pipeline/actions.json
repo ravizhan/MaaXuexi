@@ -136,5 +136,17 @@
     "recognition": "TemplateMatch",
     "template": "../image/文本框.png",
     "action": "InputText"
+  },
+  "yolo_detect": {
+    "recognition": "NeuralNetworkDetect",
+    "model": "yolo.onnx",
+    "labels": ["article", "article_image", "article_image_big", "video", "video_big", "video_small"],
+    "threshold": 0.75,
+    "order_by": "Vertical",
+    "action": "DoNothing",
+    "expected": [0,1,2,3,4,5],
+    "roi": [8,0,712,1280],
+    "pre_delay": 0,
+    "post_delay": 0
   }
 }
