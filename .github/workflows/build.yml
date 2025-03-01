@@ -70,7 +70,7 @@ jobs:
           python-version-file: "pyproject.toml"
 
       - name: Install Dependencies
-        run: uv sync --all-extras --dev
+        run: uv sync --dev
 
       - name: Build Executable
         run: uv run python -m nuitka --standalone --windows-console-mode=force --assume-yes-for-downloads --user-package-configuration-file=nuitka-package.config.yml --remove-output --lto=yes --output-dir=build -o MaaXuexi webui.py
@@ -80,15 +80,17 @@ jobs:
         run: |
           cp -r resource build/webui.dist/resource
           cp -r config build/webui.dist/config
+          cp -r page build/webui.dist/page
 
       - name: Copy Resource Windows
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           xcopy .\resource\ build\webui.dist\resource\ /S /I
           xcopy .\config\ build\webui.dist\config\ /S /I
+          xcopy .\page\ build\webui.dist\page\ /S /I
 
       - name: Determine OS Name
-        uses: rishabhgupta/split-by@v1
+        uses: rishabhgupta/split-by@v1.0.1
         id: split
         with:
           string: ${{ matrix.os }}
