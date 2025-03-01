@@ -8,7 +8,10 @@ jobs:
   npm-build:
     runs-on: ubuntu-latest
     outputs:
-      cache-primary-key: ${{ steps.Cache.outputs.cache-primary-key }}
+      cache-key: ${{ steps.Store-Cache-Key.outputs.cache-key }}
+    defaults:
+      run:
+        working-directory: ./front
     steps:
       - name: Check-out repository
         uses: actions/checkout@v4
@@ -24,11 +27,15 @@ jobs:
       - name: Build Executable
         run: npm run build
 
+      - name: Store Cache Key
+        id: Store-Cache-Key
+        run: echo "cache-key=frontpage-dist-${{ hashFiles('page/**') }}" >> "$GITHUB_OUTPUT"
+
       - name: Cache
         uses: actions/cache@v4.2.1
         with:
           path: page
-          key: frontpage-dist-${{ hashFiles('dist/**') }}
+          key: ${{ steps.Store-Cache-Key.outputs.cache-key }}
 
   nuitka-build:
     env:
@@ -37,7 +44,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ macos-latest, ubuntu-latest, windows-latest ]
-
     runs-on: ${{ matrix.os }}
     needs: npm-build
 
@@ -49,7 +55,9 @@ jobs:
         uses: actions/cache@v4.2.1
         with:
           path: page
-          key: ${{ needs.npm-build.outputs.cache-primary-key }}
+          key: ${{ needs.npm-build.outputs.cache-key }}
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -65,36 +73,29 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Build Executable
-        run: uv run python -m nuitka --standalone --windows-console-mode=force --assume-yes-for-downloads --user-package-configuration-file=nuitka-package.config.yml --remove-output --lto=yes --output-dir=build -o MaaXuexi main.py
+        run: uv run python -m nuitka --standalone --windows-console-mode=force --assume-yes-for-downloads --user-package-configuration-file=nuitka-package.config.yml --remove-output --lto=yes --output-dir=build -o MaaXuexi webui.py
 
       - name: Copy Resource Linux Macos
         if: ${{ matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest' }}
         run: |
-          cp -r resource build/main.dist/resource
-          cp -r config build/main.dist/config
+          cp -r resource build/webui.dist/resource
+          cp -r config build/webui.dist/config
 
       - name: Copy Resource Windows
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          xcopy .\resource\ build\main.dist\resource\ /S /I
-          xcopy .\config\ build\main.dist\config\ /S /I
+          xcopy .\resource\ build\webui.dist\resource\ /S /I
+          xcopy .\config\ build\webui.dist\config\ /S /I
 
       - name: Determine OS Name
-        run: |
-          case ${{ matrix.os }} in
-            windows-latest)
-              echo SHORT_OS_NAME=windows >> $GITHUB_ENV
-              ;;
-            macos-latest)
-              echo SHORT_OS_NAME=macos >> $GITHUB_ENV
-              ;;
-            ubuntu-latest)
-              echo SHORT_OS_NAME=linux >> $GITHUB_ENV
-              ;;
-          esac
+        uses: rishabhgupta/split-by@v1
+        id: split
+        with:
+          string: ${{ matrix.os }}
+          split-by: '-'
 
       - name: Compress Build
-        run: 7z a -t7z -mx=9 -mmt -ms -r MaaXuexi-${{ env.SHORT_OS_NAME }}-${{ github.ref_name }}.7z "./build/main.dist/*"
+        run: 7z a -t7z -mx=9 -mmt -ms -r MaaXuexi-${{ steps.split.outputs._0 }}-${{ github.ref_name }}.7z "./build/webui.dist/*"
 
       - name: Upload Artifacts To Cloudflare
         uses: magicwallet/r2-upload@main
@@ -103,11 +104,11 @@ jobs:
           access_key_id: ${{ secrets.R2_ACCESS_KEY_ID }}
           secret_access_key: ${{ secrets.R2_ACCESS_SECRET_KEY }}
           bucket: maaxuexi
-          file: ./MaaXuexi-${{ env.SHORT_OS_NAME }}-${{ github.ref_name }}.7z
+          file: ./MaaXuexi-${{ steps.split.outputs._0 }}-${{ github.ref_name }}.7z
 
       - name: Release
         uses: ncipollo/release-action@v1.16.0
         with:
           draft: true
           artifacts: |
-            MaaXuexi-${{ env.SHORT_OS_NAME }}-${{ github.ref_name }}.7z
+            MaaXuexi-${{ steps.split.outputs._0 }}-${{ github.ref_name }}.7z
