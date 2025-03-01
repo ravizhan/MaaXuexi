@@ -34,7 +34,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir:'page'
+    outDir:'../page'
   },
   server: {
     proxy: {
