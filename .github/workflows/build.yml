@@ -112,5 +112,6 @@ jobs:
         uses: ncipollo/release-action@v1.16.0
         with:
           draft: true
+          allowUpdates: true
           artifacts: |
             MaaXuexi-${{ steps.split.outputs._0 }}-${{ github.ref_name }}.7z
