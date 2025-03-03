@@ -33,11 +33,14 @@
           />
         </n-list-item>
       </n-list>
-      <div class="form-btn">
+      <n-flex class="form-btn" justify="center">
         <n-button strong secondary type="info" size="large" @click="startTask">
           开始任务
         </n-button>
-      </div>
+        <n-button strong secondary type="info" size="large" @click="stopTask">
+          中止任务
+        </n-button>
+      </n-flex>
     </n-card>
   </div>
 </template>
@@ -77,6 +80,21 @@ function startTask() {
   }).then(res => res.json()).then(data => {
     if (data["status"] === "success") {
       message.success('任务开始')
+    } else {
+      message.error(data["message"])
+    }
+  })
+}
+
+function stopTask() {
+  fetch('/api/stop', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  }).then(res => res.json()).then(data => {
+    if (data["status"] === "success") {
+      message.success('任务已中止')
     } else {
       message.error(data["message"])
     }

@@ -93,6 +93,13 @@ def start(tasks: TaskModel):
     app_state.child_process.start()
     return {"status": "success"}
 
+@app.post("/app/stop")
+def stop():
+    if app_state.child_process is None or app_state.worker is None:
+        return {"status": "failed","message":"任务未开始"}
+    app_state.worker.stop()
+    return {"status": "success"}
+
 @app.websocket("/api/ws")
 async def websocket_endpoint(websocket: websockets.WebSocket):
     await websocket.accept()
@@ -109,8 +116,9 @@ async def websocket_endpoint(websocket: websockets.WebSocket):
                 app_state.child_process = None
                 # app_state.history_message = []
                 await websocket.send_text(data)
-                await websocket.close()
-                break
+                # await websocket.close()
+                # break
+                continue
             await websocket.send_text(data)
         await asyncio.sleep(0.01)
 

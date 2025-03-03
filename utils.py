@@ -297,6 +297,13 @@ class MaaWorker:
         self.send_log("所有任务完成")
         time.sleep(0.5)
 
+    def stop(self):
+        status = self.tasker.post_stop().wait().succeeded
+        if status:
+            self.send_log("任务已停止")
+        else:
+            self.send_log("任务停止失败，请检查终端日志")
+
     def read_article(self):
         self.send_log("开始任务：选读文章")
         finished_article = []

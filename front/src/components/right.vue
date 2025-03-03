@@ -23,7 +23,7 @@ btnCopy.on('success', () => {
   message.success('复制成功')
 })
 onMounted(() => {
-  createSocket('ws://'+window.location.host+'/api/ws')
+  createSocket()
   const getsocketData = e => {
     const data = e && e.detail.data
     log.value = log.value + "\n" + data

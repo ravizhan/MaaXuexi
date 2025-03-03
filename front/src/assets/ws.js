@@ -1,11 +1,11 @@
 // Reference: https://juejin.cn/post/7175043923709001765
 let Socket = ''
 
-export const createSocket = url => {
+export const createSocket = () => {
   Socket && Socket.close()
   if (!Socket) {
     console.log('建立websocket连接')
-    Socket = new WebSocket(url)
+    Socket = new WebSocket('ws://'+window.location.host+'/api/ws')
     Socket.onmessage = onmessageWS
     Socket.onerror = onerrorWS
     Socket.onclose = oncloseWS
