@@ -9,7 +9,6 @@
   "综合": {
     "recognition": "TemplateMatch",
     "template": "../image/综合.png",
-    "roi" : [427,107,87,67],
     "threshold": 0.9,
     "action": "Click"
   },

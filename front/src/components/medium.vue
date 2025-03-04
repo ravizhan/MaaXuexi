@@ -94,7 +94,7 @@ function stopTask() {
     }
   }).then(res => res.json()).then(data => {
     if (data["status"] === "success") {
-      message.success('任务已中止')
+      message.success('正在中止任务，请稍后')
     } else {
       message.error(data["message"])
     }

@@ -88,16 +88,18 @@ def start(tasks: TaskModel):
         return {"status": "failed","message":"请先连接设备"}
     app_state.child_process = threading.Thread(
         target=app_state.worker.task,
-        args=(tasks.tasklist,)
+        args=(tasks.tasklist,),
+        daemon=True
     )
     app_state.child_process.start()
     return {"status": "success"}
 
-@app.post("/app/stop")
+@app.post("/api/stop")
 def stop():
     if app_state.child_process is None or app_state.worker is None:
         return {"status": "failed","message":"任务未开始"}
-    app_state.worker.stop()
+    app_state.worker.stop_flag = True
+    app_state.child_process = None
     return {"status": "success"}
 
 @app.websocket("/api/ws")

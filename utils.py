@@ -228,7 +228,7 @@ class MaaWorker:
         self.tasker = Tasker()
         self.connected = False
         self.ai_resolver = AIResolver(api_key=api_key)
-        # self.model = ONNXModel()
+        self.stop_flag = False
 
         self.send_log("MAA初始化成功")
 
@@ -280,9 +280,13 @@ class MaaWorker:
         return list(boxes), list(labels)
 
     def task(self, tasks):
+        self.stop_flag = False
         self.send_log("任务开始")
         try:
             for task in tasks:
+                if self.stop_flag:
+                    self.send_log("任务已终止")
+                    return
                 if task == "选读文章":
                     self.read_article()
                 elif task == "视听学习":
@@ -291,24 +295,26 @@ class MaaWorker:
                     self.daily_answer()
                 elif task == "趣味答题":
                     self.funny_answer()
+            if self.stop_flag:
+                self.send_log("任务已终止")
+                return
         except:
             self.send_log("任务出现异常，请检查终端日志")
             self.send_log("请将日志反馈至 https://github.com/ravizhan/MaaXuexi/issues")
         self.send_log("所有任务完成")
         time.sleep(0.5)
 
-    def stop(self):
-        status = self.tasker.post_stop().wait().succeeded
-        if status:
-            self.send_log("任务已停止")
-        else:
-            self.send_log("任务停止失败，请检查终端日志")
 
     def read_article(self):
         self.send_log("开始任务：选读文章")
         finished_article = []
         reading_time = 0
+        self.send_log("进入板块 综合")
+        self.tasker.post_task("综合").wait()
+        time.sleep(randint(3, 5))
         while reading_time < 400:
+            if self.stop_flag:
+                return
             # 识别文章，获取点击文章的坐标范围
             image = self.tasker.controller.post_screencap().wait().get()
             boxes, box_class = self.detect()
@@ -327,11 +333,15 @@ class MaaWorker:
                 img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
                 article_list.append(img)
             for i in range(len(box_class)):
+                if self.stop_flag:
+                    return
                 if all(match_sift_flann(article_list[i], img2)[1] <= 0.7 for img2 in finished_article):
                     self.send_log(f"read_{len(finished_article)}")
                     self.tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
                     time.sleep(3)
                     for _ in range(5):
+                        if self.stop_flag:
+                            return
                         self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),randint(300, 400), randint(1000, 1500)).wait()
                         t = randint(8, 10)
                         time.sleep(t)
@@ -351,6 +361,8 @@ class MaaWorker:
         self.tasker.post_task("电视台").wait()
         time.sleep(randint(3, 5))
         while waiting_time < 400:
+            if self.stop_flag:
+                return
             # 识别视频，获取点击视频的坐标范围
             image = self.tasker.controller.post_screencap().wait().get()
             boxes, box_class = self.detect()
@@ -369,7 +381,11 @@ class MaaWorker:
                 img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
                 video_list.append(img)
             for i in range(len(box_class)):
+                if self.stop_flag:
+                    return
                 if all(match_sift_flann(video_list[i], img2)[1] <= 0.7 for img2 in finished_video):
+                    if self.stop_flag:
+                        return
                     self.send_log(f"video_{len(finished_video)}")
                     self.tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
                     time.sleep(3)
@@ -406,6 +422,8 @@ class MaaWorker:
         time.sleep(5)
         # 开始答题
         for i in range(5):
+            if self.stop_flag:
+                return
             # 判断是不是填空题
             recog_result: TaskDetail = self.tasker.post_task("填空题").wait().get()  # 单选题和填空题相似度竟然有0.75，离谱
             if not recog_result.nodes:
