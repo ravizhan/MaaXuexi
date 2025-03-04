@@ -186,7 +186,7 @@ class AIResolver:
     def resolve_blank(self, img: np.ndarray) -> str | None:
         url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
         data = {
-            "model": self.endpoint,
+            "model": "doubao-1-5-vision-pro-32k-250115",
             "messages": [
                 {
                     "role": "system",
