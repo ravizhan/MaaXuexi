@@ -147,5 +147,9 @@
     "roi": [8,0,712,1280],
     "pre_delay": 0,
     "post_delay": 0
+  },
+  "similarity": {
+    "recognition": "custom",
+    "custom_recognition": "SimilarityReco"
   }
 }

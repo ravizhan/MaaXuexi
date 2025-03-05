@@ -33,10 +33,8 @@ maaagentbinary==1.0.1
 maafw==3.0.3
     # via maaxuexi (pyproject.toml)
 numpy==2.2.2
-    # via
-    #   maafw
-    #   opencv-python-headless
-opencv-python-headless==4.11.0.86
+    # via maafw
+pillow==11.1.0
     # via maaxuexi (pyproject.toml)
 plyer==2.1.0
     # via maaxuexi (pyproject.toml)

@@ -1,88 +1,93 @@
 import base64
+import io
+import json
 import time
+import traceback
 from queue import SimpleQueue
 from random import randint
 
-import cv2
+# import cv2
+from PIL import Image
 import httpx
 import numpy as np
 import plyer
 from maa.controller import AdbController
+from maa.custom_recognition import CustomRecognition
 from maa.define import TaskDetail
 from maa.resource import Resource
 from maa.tasker import Tasker
 from maa.toolkit import Toolkit
 
 
-def match_sift_flann(image1, image2):
-    """
-    使用 SIFT 和 FLANN 匹配器匹配两幅图像的特征点.
+# def match_sift_flann(image1, image2):
+#     """
+#     使用 SIFT 和 FLANN 匹配器匹配两幅图像的特征点.
+#
+#     :param image1: 第一幅图像 (ndarray)
+#     :param image2: 第二幅图像 (ndarray)
+#     :return: 匹配结果图像和相似度分数
+#     """
+#     # 确保图像为灰度图
+#     if len(image1.shape) == 3:
+#         image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
+#     if len(image2.shape) == 3:
+#         image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+#
+#     # 创建 SIFT 检测器
+#     sift = cv2.SIFT.create()
+#
+#     # 检测特征点和计算描述符
+#     keypoints1, descriptors1 = sift.detectAndCompute(image1, None)
+#     keypoints2, descriptors2 = sift.detectAndCompute(image2, None)
+#
+#     # FLANN 参数设置
+#     FLANN_INDEX_KDTREE = 1
+#     index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+#     search_params = dict(checks=50)
+#
+#     # 创建 FLANN 匹配器
+#     flann = cv2.FlannBasedMatcher(index_params, search_params)
+#
+#     # 进行特征匹配
+#     matches = flann.knnMatch(descriptors1, descriptors2, k=2)
+#
+#     # 进行 Lowe's ratio test 来筛选好的匹配
+#     good_matches = []
+#     for m, n in matches:
+#         if m.distance < 0.7 * n.distance:
+#             good_matches.append(m)
+#
+#     # 可视化匹配结果
+#     matched_image = cv2.drawMatches(image1, keypoints1, image2, keypoints2, good_matches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+#
+#     # 计算相似度
+#     similarity = len(good_matches) / min(len(keypoints1), len(keypoints2))
+#     # print("Similarity score: ", similarity)
+#     return matched_image, similarity
 
-    :param image1: 第一幅图像 (ndarray)
-    :param image2: 第二幅图像 (ndarray)
-    :return: 匹配结果图像和相似度分数
-    """
-    # 确保图像为灰度图
-    if len(image1.shape) == 3:
-        image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
-    if len(image2.shape) == 3:
-        image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
-
-    # 创建 SIFT 检测器
-    sift = cv2.SIFT.create()
-
-    # 检测特征点和计算描述符
-    keypoints1, descriptors1 = sift.detectAndCompute(image1, None)
-    keypoints2, descriptors2 = sift.detectAndCompute(image2, None)
-
-    # FLANN 参数设置
-    FLANN_INDEX_KDTREE = 1
-    index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-    search_params = dict(checks=50)
-
-    # 创建 FLANN 匹配器
-    flann = cv2.FlannBasedMatcher(index_params, search_params)
-
-    # 进行特征匹配
-    matches = flann.knnMatch(descriptors1, descriptors2, k=2)
-
-    # 进行 Lowe's ratio test 来筛选好的匹配
-    good_matches = []
-    for m, n in matches:
-        if m.distance < 0.7 * n.distance:
-            good_matches.append(m)
-
-    # 可视化匹配结果
-    matched_image = cv2.drawMatches(image1, keypoints1, image2, keypoints2, good_matches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-
-    # 计算相似度
-    similarity = len(good_matches) / min(len(keypoints1), len(keypoints2))
-    # print("Similarity score: ", similarity)
-    return matched_image, similarity
-
-def letterbox(img, new_shape, color=(114, 114, 114)):
-    """
-    将图像进行 letterbox 填充，保持纵横比不变，并缩放到指定尺寸。
-    """
-    shape = img.shape[:2]  # 当前图像的宽高
-    if isinstance(new_shape, int):
-        new_shape = (new_shape, new_shape)
-    # 计算缩放比例
-    r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])  # 选择宽高中最小的缩放比
-    # 缩放后的未填充尺寸
-    new_unpad = (int(round(shape[1] * r)), int(round(shape[0] * r)))
-    # 计算需要的填充
-    dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]  # 计算填充的尺寸
-    dw /= 2  # padding 均分
-    dh /= 2
-    # 缩放图像
-    if shape[::-1] != new_unpad:  # 如果当前图像尺寸不等于 new_unpad，则缩放
-        img = cv2.resize(img, new_unpad, interpolation=cv2.INTER_LINEAR)
-    # 为图像添加边框以达到目标尺寸
-    top, bottom = int(round(dh)), int(round(dh))
-    left, right = int(round(dw)), int(round(dw))
-    img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)
-    return img, (r, r), (dw, dh)
+# def letterbox(img, new_shape, color=(114, 114, 114)):
+#     """
+#     将图像进行 letterbox 填充，保持纵横比不变，并缩放到指定尺寸。
+#     """
+#     shape = img.shape[:2]  # 当前图像的宽高
+#     if isinstance(new_shape, int):
+#         new_shape = (new_shape, new_shape)
+#     # 计算缩放比例
+#     r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])  # 选择宽高中最小的缩放比
+#     # 缩放后的未填充尺寸
+#     new_unpad = (int(round(shape[1] * r)), int(round(shape[0] * r)))
+#     # 计算需要的填充
+#     dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]  # 计算填充的尺寸
+#     dw /= 2  # padding 均分
+#     dh /= 2
+#     # 缩放图像
+#     if shape[::-1] != new_unpad:  # 如果当前图像尺寸不等于 new_unpad，则缩放
+#         img = cv2.resize(img, new_unpad, interpolation=cv2.INTER_LINEAR)
+#     # 为图像添加边框以达到目标尺寸
+#     top, bottom = int(round(dh)), int(round(dh))
+#     left, right = int(round(dw)), int(round(dw))
+#     img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)
+#     return img, (r, r), (dw, dh)
 
 
 # class ONNXModel:
@@ -141,6 +146,13 @@ class AIResolver:
         self.session = httpx.Client()
         self.session.headers = {"Authorization": f"Bearer {api_key}"}
 
+    @staticmethod
+    def image_encode(img: np.ndarray) -> str:
+        buffered = io.BytesIO()
+        Image.fromarray(img).save(buffered,format="JPEG")
+        encoded_image = base64.b64encode(buffered.getvalue()).decode()
+        return encoded_image
+
     def resolve_choice(self, img1: np.ndarray, img2: np.ndarray) -> list[str] | None:
         url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
         data = {
@@ -155,11 +167,11 @@ class AIResolver:
                     "content": [
                         {
                             "type": "image_url",
-                            "image_url": "data:image/jpg;base64,"+base64.b64encode(cv2.imencode('.jpg', img1)[1].tobytes()).decode(),
+                            "image_url": "data:image/jpg;base64," + self.image_encode(img1),
                         },
                         {
                             "type": "image_url",
-                            "image_url": "data:image/jpg;base64," + base64.b64encode(cv2.imencode('.jpg', img2)[1].tobytes()).decode(),
+                            "image_url": "data:image/jpg;base64," + self.image_encode(img2),
                         }
                     ],
                 }
@@ -197,7 +209,7 @@ class AIResolver:
                     "content": [
                         {
                             "type": "image_url",
-                            "image_url": "data:image/jpg;base64,"+base64.b64encode(cv2.imencode('.jpg', img)[1].tobytes()).decode(),
+                            "image_url": "data:image/jpg;base64," + self.image_encode(img),
                         }
                     ],
                 }
@@ -215,16 +227,15 @@ class AIResolver:
             answer = None
         return answer
 
-
+resource = Resource()
 class MaaWorker:
     def __init__(self, queue: SimpleQueue, api_key):
         user_path = "./"
         Toolkit.init_option(user_path)
 
         self.queue = queue
-        self.resource = Resource()
-        self.resource.set_cpu()
-        self.resource.post_bundle("./resource").wait()
+        resource.set_cpu()
+        resource.post_bundle("./resource").wait()
         self.tasker = Tasker()
         self.connected = False
         self.ai_resolver = AIResolver(api_key=api_key)
@@ -258,7 +269,7 @@ class MaaWorker:
         if not status:
             self.send_log("设备连接失败，请检查终端日志")
             return self.connected
-        if self.tasker.bind(self.resource, controller):
+        if self.tasker.bind(resource, controller):
             self.connected = True
             # size = subprocess.run([device.adb_path, "shell", "wm", "size"], text=True, capture_output=True).stdout
             # size = size.strip().split(": ")[1]
@@ -279,6 +290,18 @@ class MaaWorker:
             labels.append(detail["label"])
         return list(boxes), list(labels)
 
+    def similarity_match(self, img1_path: str, img2_path: str) -> bool:
+        pipeline = {
+            "similarity": {
+                "recognition": "custom",
+                "custom_recognition": "SimilarityReco",
+                "custom_recognition_param":{"origin": img1_path, "pic": "../../"+img2_path}
+            }
+        }
+        result: TaskDetail = self.tasker.post_task("similarity", pipeline).wait().get()
+        return result.nodes[0].recognition.best_result.detail == "failed"
+
+
     def task(self, tasks):
         self.stop_flag = False
         self.send_log("任务开始")
@@ -298,7 +321,8 @@ class MaaWorker:
             if self.stop_flag:
                 self.send_log("任务已终止")
                 return
-        except:
+        except Exception as e:
+            traceback.print_exc()
             self.send_log("任务出现异常，请检查终端日志")
             self.send_log("请将日志反馈至 https://github.com/ravizhan/MaaXuexi/issues")
         self.send_log("所有任务完成")
@@ -329,14 +353,16 @@ class MaaWorker:
             self.send_log(f"识别到{len(boxes)}篇文章")
             article_list = []
             for box in boxes:
-                cv2.rectangle(image, (box[0], box[1]), (box[0] + box[2], box[1] + box[3]), (0, 255, 0), 2)
                 img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
                 article_list.append(img)
             for i in range(len(box_class)):
                 if self.stop_flag:
                     return
-                if all(match_sift_flann(article_list[i], img2)[1] <= 0.7 for img2 in finished_article):
+                Image.fromarray(article_list[i][:, :, ::-1]).save("current.jpg","JPEG")
+                if all(self.similarity_match("current.jpg", img2) for img2 in finished_article):
                     self.send_log(f"read_{len(finished_article)}")
+                    Image.fromarray(article_list[i][:, :, ::-1]).save(f"read_{len(finished_article)}.jpg", "JPEG")
+                    time.sleep(0.5)
                     self.tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
                     time.sleep(3)
                     for _ in range(5):
@@ -349,7 +375,7 @@ class MaaWorker:
                     time.sleep(1)
                     self.tasker.post_task("返回").wait()
                     time.sleep(randint(3, 5))
-                    finished_article.append(article_list[i])
+                    finished_article.append(f"read_{len(finished_article)}.jpg")
             self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
                                          randint(300, 400), randint(1000, 1500)).wait()
         self.send_log("选读文章任务完成")
@@ -377,16 +403,18 @@ class MaaWorker:
             self.send_log(f"识别到{len(boxes)}个视频")
             video_list = []
             for box in boxes:
-                cv2.rectangle(image, (box[0], box[1]), (box[0] + box[2], box[1] + box[3]), (0, 255, 0), 2)
                 img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
                 video_list.append(img)
             for i in range(len(box_class)):
                 if self.stop_flag:
                     return
-                if all(match_sift_flann(video_list[i], img2)[1] <= 0.7 for img2 in finished_video):
+                Image.fromarray(video_list[i][:, :, ::-1]).save("current.jpg", "JPEG")
+                time.sleep(0.5)
+                if all(self.similarity_match("current.jpg", img2) for img2 in finished_video):
                     if self.stop_flag:
                         return
                     self.send_log(f"video_{len(finished_video)}")
+                    Image.fromarray(video_list[i][:, :, ::-1]).save(f"video_{len(video_list)}.jpg", "JPEG")
                     self.tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
                     time.sleep(3)
                     t = randint(50, 70)
@@ -394,7 +422,7 @@ class MaaWorker:
                     waiting_time += t
                     self.tasker.post_task("返回2").wait()
                     time.sleep(randint(3, 5))
-                    finished_video.append(video_list[i])
+                    finished_video.append(f"video_{len(video_list)}.jpg")
             self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),randint(300, 400), randint(1000, 1500)).wait()
         self.send_log("视听学习任务完成")
 
@@ -520,3 +548,36 @@ class MaaWorker:
     def funny_answer(self):
         self.send_log("开始任务：趣味答题")
         pass
+
+
+@resource.custom_recognition("SimilarityReco")
+class SimilarityReco(CustomRecognition):
+    def analyze(
+        self,
+        context,
+        argv: CustomRecognition.AnalyzeArg,
+    ) -> CustomRecognition.AnalyzeResult:
+        img1 = json.loads(argv.custom_recognition_param)["origin"]
+        img1 = np.asarray(Image.open(img1))
+        img2 = json.loads(argv.custom_recognition_param)["pic"]
+        reco_detail = context.run_recognition(
+            "test_template",
+            img1,
+            {
+                "test_template":
+                    {
+                        "recognition": "FeatureMatch",
+                        "template": img2,
+                        "count": 200,
+                        "pre_delay": 0,
+                        "post_delay": 0
+                    }
+            },
+        )
+        if reco_detail is None:
+            return CustomRecognition.AnalyzeResult(
+                box=(0, 0, 0, 0), detail="failed"
+            )
+        return CustomRecognition.AnalyzeResult(
+            box=(0, 0, 0, 0), detail="success"
+        )
