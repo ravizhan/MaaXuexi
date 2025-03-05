@@ -277,6 +277,8 @@ class MaaWorker:
             # dpi = dpi.strip().split(": ")[1]
             # print(size,dpi)
             self.send_log("设备连接成功")
+            self.send_log("正在启动 学习强国")
+            controller.post_start_app("cn.xuexi.android").wait()
         else:
             self.send_log("设备连接失败，请检查终端日志")
         return self.connected

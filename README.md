@@ -11,16 +11,17 @@
   <img alt="license" src="https://img.shields.io/github/license/ravizhan/MaaXuexi">
   <img alt="Python" src="https://img.shields.io/badge/Python 3.12-3776AB?logo=python&logoColor=white">
   <img alt="Auther" src="https://img.shields.io/badge/code%20by-ravi-127fca">
+  <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/ravizhan/MaaXuexi">
+  <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/ravizhan/MaaXuexi">
 </p>
-
-<div align="center">
-
-[<img src="https://api.gitsponsors.com/api/badge/img?id=892976182" height="30">](https://api.gitsponsors.com/api/badge/link?p=BmTVRa4Q8TtMZS4DMpTG3041SLDUk4W2uhU81GU9B62IsJgT2SNR1EUla6Y/Y4pUipjwNBlY2madJRzcueOYZiai/Ey00xo1lT5jz3Cp5o/bVdYejQ7BC1AnMOAoH8L+2abXXdw5dRDwMerZgdMGtQ==)
-</div>
 
 ## 警告
 
-本项目仅限用于学习研究，禁止倒卖本项目
+**本项目仅供学习交流使用**
+
+**本项目仅供学习交流使用**
+
+**本项目仅供学习交流使用**
 
 因使用本项目造成的**任何后果**(*包括但不限于**封号***)与本人无关
 
@@ -28,7 +29,7 @@
 
 因使用本项目造成的**任何后果**(*包括但不限于**封号***)与本人无关
 
-**本项目仅供学习交流使用，禁止用于商业用途，否则后果自负。**
+**本项目仅供学习交流使用，禁止倒卖或用于商业用途，否则后果自负。**
 
 ## 功能
 ### 阅读文章
@@ -91,9 +92,6 @@
 此外，火山引擎注册即送50万tokens免费推理额度，足够免费使用1个月
 
 ### 运行
-请先运行安卓模拟器，手动打开并登录学习强国APP
-
-**如果是第一次运行，请先手动点开各个板块，确保APP不会弹出新手引导**
 #### windows
 下载安装 [vc_redist](https://aka.ms/vs/17/release/vc_redist.x64.exe)
 
@@ -112,6 +110,10 @@
 1. 在 `设置` 中填入刚刚复制的API Key，点击 `保存`
 2. 在 `设备栏` 下拉选择模拟器，点击 `连接`
 3. 在 `任务栏` 勾选需要完成的任务，点击 `开始任务`
+
+连接设备后会自动打开APP，请确保APP已登录再开始任务
+
+**如果是第一次运行，请先手动点开各个板块，确保APP不会弹出新手引导**
 
 > 注意: 执行 `每日答题` 任务时，**请留意系统通知**
 > 
