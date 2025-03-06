@@ -14,7 +14,7 @@ click==8.1.8
     # via uvicorn
 colorama==0.4.6
     # via click
-fastapi==0.115.8
+fastapi==0.115.11
     # via maaxuexi (pyproject.toml)
 h11==0.14.0
     # via
@@ -30,7 +30,7 @@ idna==3.10
     #   httpx
 maaagentbinary==1.0.1
     # via maafw
-maafw==3.0.3
+maafw==3.0.4
     # via maaxuexi (pyproject.toml)
 numpy==2.2.2
     # via maafw
@@ -54,5 +54,5 @@ typing-extensions==4.12.2
     #   pydantic-core
 uvicorn==0.34.0
     # via maaxuexi (pyproject.toml)
-websockets==15.0
+websockets==15.0.1
     # via maaxuexi (pyproject.toml)

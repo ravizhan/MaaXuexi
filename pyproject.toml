@@ -1,21 +1,21 @@
 [project]
 name = "MaaXuexi"
-version = "1.5.0"
+version = "1.5.5"
 description = "基于全新架构的 学习强国 自动化助手。图像技术 + 模拟控制，解放双手！由 MaaFramework 强力驱动！"
 requires-python = ">=3.10"
 dependencies = [
-    "fastapi>=0.115.8",
+    "fastapi>=0.115.11",
     "httpx>=0.28.1",
-    "maafw>=3.0.3",
+    "maafw>=3.0.4",
     "pillow>=11.1.0",
     "plyer>=2.1.0",
     "uvicorn>=0.34.0",
-    "websockets>=15.0",
+    "websockets>=15.0.1",
 ]
 [[tool.uv.index]]
 url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
 [dependency-groups]
 dev = [
-    "nuitka>=2.6.6",
+    "nuitka>=2.6.7",
 ]

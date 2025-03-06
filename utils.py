@@ -6,11 +6,10 @@ import traceback
 from queue import SimpleQueue
 from random import randint
 
-# import cv2
-from PIL import Image
 import httpx
 import numpy as np
 import plyer
+from PIL import Image
 from maa.controller import AdbController
 from maa.custom_recognition import CustomRecognition
 from maa.define import TaskDetail
