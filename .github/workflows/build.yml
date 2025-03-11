@@ -85,7 +85,7 @@ jobs:
       - name: Copy Resource Windows
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          del maa\bin\DirectML.dll
+          del build\webui.dist\maa\bin\DirectML.dll
           xcopy .\resource\ build\webui.dist\resource\ /S /I
           xcopy .\config\ build\webui.dist\config\ /S /I
           xcopy .\page\ build\webui.dist\page\ /S /I
