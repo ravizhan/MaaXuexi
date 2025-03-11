@@ -434,6 +434,8 @@ class MaaWorker:
         time.sleep(10)
         load_result: TaskDetail = self.tasker.post_task("加载失败").wait().get()
         while not load_result.nodes:
+            if self.stop_flag:
+                return
             self.send_log("积分界面加载失败，正在重试")
             self.tasker.post_task("返回").wait()
             self.tasker.post_task("积分").wait()
@@ -445,8 +447,12 @@ class MaaWorker:
                                      randint(1000, 1500)).wait()
         time.sleep(randint(1, 2))
         # 点击每日答题按钮
-        self.tasker.post_task("每日答题").wait()
+        result: TaskDetail = self.tasker.post_task("每日答题").wait().get()
+        box = result.nodes[0].recognition.best_result.box
+        self.tasker.controller.post_click(box[0]+randint(10,30),box[1]+randint(10,30))
         self.send_log("开始答题")
+        if self.stop_flag:
+            return
         # 等待界面加载完毕
         time.sleep(5)
         # 开始答题

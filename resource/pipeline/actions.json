@@ -44,9 +44,8 @@
     "recognition": "TemplateMatch",
     "template": "../image/每日答题.png",
     "roi" : [0,330,720,950],
-    "target_offset": [10,-20,0,0],
     "threshold": 0.9,
-    "action": "Click"
+    "action": "DoNothing"
   },
   "填空题": {
     "recognition": "TemplateMatch",
