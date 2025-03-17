@@ -2,8 +2,7 @@
   "返回": {
     "recognition": "TemplateMatch",
     "template": "../image/返回.png",
-    "roi": [12,43,55,64],
-    "threshold": 0.4,
+    "roi": [24,47,34,54],
     "action": "Click"
   },
   "综合": {
@@ -15,7 +14,7 @@
   "电视台": {
     "recognition": "TemplateMatch",
     "template": "../image/电视台.png",
-    "roi" : [464,1201,77,79],
+    "roi" : [475,1212,54,68],
     "action": "Click"
   },
   "返回2": {
@@ -145,7 +144,8 @@
     "expected": [0,1,2,3,4,5],
     "roi": [8,0,712,1280],
     "pre_delay": 0,
-    "post_delay": 0
+    "post_delay": 0,
+    "timeout": 5000
   },
   "similarity": {
     "recognition": "custom",
