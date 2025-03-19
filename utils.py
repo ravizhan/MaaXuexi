@@ -144,6 +144,12 @@ class MaaWorker:
         )
         status = controller.post_connection().wait().succeeded
         if not status:
+            plyer.notification.notify(
+                title="MaaXuexi",
+                message="设备连接失败，请检查终端日志",
+                app_name="MaaXuexi",
+                timeout=30
+            )
             self.send_log("设备连接失败，请检查终端日志")
             return self.connected
         if self.tasker.bind(resource, controller):
@@ -157,6 +163,12 @@ class MaaWorker:
             self.send_log("正在启动 学习强国")
             controller.post_start_app("cn.xuexi.android").wait()
         else:
+            plyer.notification.notify(
+                title="MaaXuexi",
+                message="设备连接失败，请检查终端日志",
+                app_name="MaaXuexi",
+                timeout=30
+            )
             self.send_log("设备连接失败，请检查终端日志")
         return self.connected
 
@@ -204,6 +216,12 @@ class MaaWorker:
                 return
         except Exception as e:
             traceback.print_exc()
+            plyer.notification.notify(
+                title="MaaXuexi",
+                message="任务出现异常，请检查终端日志",
+                app_name="MaaXuexi",
+                timeout=30
+            )
             self.send_log("任务出现异常，请检查终端日志")
             self.send_log("请将日志反馈至 https://github.com/ravizhan/MaaXuexi/issues")
         self.send_log("所有任务完成")
@@ -355,8 +373,8 @@ class MaaWorker:
                         plyer.notification.notify(
                             title="MaaXuexi",
                             message="AI解答失败，请求接管",
-                            app_name="MAA",
-                            timeout=0
+                            app_name="MaaXuexi",
+                            timeout=60
                         )
                         self.send_log("AI解答失败, 请求接管")
                         #TODO 网页弹窗，pipe传递
@@ -396,7 +414,7 @@ class MaaWorker:
                         title="MaaXuexi",
                         message="AI解答失败，请求接管",
                         app_name="MAA",
-                        timeout=0
+                        timeout=60
                     )
                     self.send_log("AI解答失败, 请求接管")
                     # TODO 网页弹窗，pipe传递
@@ -424,8 +442,8 @@ class MaaWorker:
             plyer.notification.notify(
                 title="MaaXuexi",
                 message="发现验证码，请求接管",
-                app_name="MAA",
-                timeout=0
+                app_name="MaaXuexi",
+                timeout=60
             )
             self.send_log("发现验证码，请求接管")
             # TODO 网页弹窗，pipe传递
