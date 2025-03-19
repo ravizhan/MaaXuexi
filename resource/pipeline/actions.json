@@ -97,7 +97,7 @@
     "recognition": "TemplateMatch",
     "template": "../image/填空题视频.png",
     "action": "DoNothing",
-    "threshold": 0.9,
+    "threshold": 0.7,
     "timeout": 1100,
     "inverse": true,
     "green_mask": true
