@@ -102,6 +102,11 @@ def stop():
     app_state.child_process = None
     return {"status": "success"}
 
+@app.post("/api/continue")
+def going_on():
+    app_state.worker.pause_flag = False
+    return {"status": "success"}
+
 @app.websocket("/api/ws")
 async def websocket_endpoint(websocket: websockets.WebSocket):
     await websocket.accept()

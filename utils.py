@@ -117,11 +117,18 @@ class MaaWorker:
         self.connected = False
         self.ai_resolver = AIResolver(api_key=api_key)
         self.stop_flag = False
-
+        self.pause_flag = False
         self.send_log("MAA初始化成功")
 
     def send_log(self,msg):
         self.queue.put(f"{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())} {msg}")
+        time.sleep(0.05)
+
+    def pause(self):
+        self.send_log("任务暂停")
+        self.pause_flag = True
+        while self.pause_flag:
+            time.sleep(0.05)
 
     @staticmethod
     def get_device():
@@ -360,7 +367,7 @@ class MaaWorker:
             # 判断是不是填空题
             recog_result: TaskDetail = self.tasker.post_task("填空题").wait().get()  # 单选题和填空题相似度竟然有0.75，离谱
             if not recog_result.nodes:
-                self.send_log(f"第{i}题 填空题")
+                self.send_log(f"第{i+1}题 填空题")
                 recog_result: TaskDetail = self.tasker.post_task("填空题视频").wait().get()
                 # 判断有没有视频，有的话调用AI解答
                 if not recog_result.nodes:
@@ -377,8 +384,7 @@ class MaaWorker:
                             timeout=60
                         )
                         self.send_log("AI解答失败, 请求接管")
-                        #TODO 网页弹窗，pipe传递
-                        input("完成该题后, 按任意键继续")
+                        self.pause()
                         continue
                 else:
                     self.send_log("查看提示")
@@ -397,7 +403,7 @@ class MaaWorker:
                 self.tasker.controller.post_input_text(answer).wait()
                 self.send_log("输入完成")
             else:
-                self.send_log(f"第{i}题 选择题")
+                self.send_log(f"第{i+1}题 选择题")
                 # 问题截图
                 img1 = self.tasker.controller.post_screencap().wait().get()
                 # 答案截图
@@ -417,8 +423,7 @@ class MaaWorker:
                         timeout=60
                     )
                     self.send_log("AI解答失败, 请求接管")
-                    # TODO 网页弹窗，pipe传递
-                    input("完成该题后, 按任意键继续")
+                    self.pause()
                     continue
                 self.send_log(f"AI解答成功，答案为{''.join(answer)}")
                 for i in answer:
@@ -446,8 +451,7 @@ class MaaWorker:
                 timeout=60
             )
             self.send_log("发现验证码，请求接管")
-            # TODO 网页弹窗，pipe传递
-            input("按任意键继续")
+            self.pause()
 
 
     def funny_answer(self):
