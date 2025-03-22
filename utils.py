@@ -241,7 +241,7 @@ class MaaWorker:
         reading_time = 0
         self.send_log("进入板块 综合")
         self.tasker.post_task("综合").wait()
-        time.sleep(randint(3, 5))
+        time.sleep(randint(4, 5))
         while reading_time < 400:
             if self.stop_flag:
                 return

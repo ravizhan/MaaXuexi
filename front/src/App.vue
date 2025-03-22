@@ -35,4 +35,10 @@
 import left from './components/left.vue'
 import medium from './components/medium.vue'
 import right from './components/right.vue'
+import { onMounted } from 'vue'
+onMounted(() => {
+  if (Notification.permission !== 'granted') {
+    Notification.requestPermission()
+  }
+})
 </script>

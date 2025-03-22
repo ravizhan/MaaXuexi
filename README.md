@@ -13,6 +13,7 @@
   <img alt="Auther" src="https://img.shields.io/badge/code%20by-ravi-127fca">
   <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/ravizhan/MaaXuexi">
   <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/ravizhan/MaaXuexi">
+  <img alt="GitHub Repo Downloads" src="https://img.shields.io/github/downloads/ravizhan/MaaXuexi/total?style=social">
 </p>
 
 ## 警告
@@ -113,6 +114,8 @@
 
 如果没有自动打开，请手动输入地址。
 
+首次打开时左上角会弹窗请求通知权限，请点击 `允许` 以确保正常发送通知
+
 ![](https://img.ravi.top/img/470c7498ff549abdb61f820522ace6f9.png)
 
 1. 在 `设置` 中填入刚刚复制的API Key，点击 `保存`
@@ -128,7 +131,7 @@
 > 
 > 当出现自动答题失败或弹出验证码时，会要求**人工接管**
 > 
-## 许可
+## 声明
 
 基于本项目使用的 [MaaFramework](https://pypi.org/project/MaaFw/) 和 [ultralytics](https://github.com/ultralytics/ultralytics) (YOLO模型) ，本项目采用 [AGPLv3协议](https://github.com/ravizhan/MaaXuexi/blob/main/LICENSE) 开源
 
