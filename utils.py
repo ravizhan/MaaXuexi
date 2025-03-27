@@ -62,7 +62,7 @@ class AIResolver:
                 print(result)
                 answer = list(result["choices"][0]["message"]["content"])
                 for i in answer.copy():
-                    if i not in ['A', 'B', 'C', 'D']:
+                    if i not in ['A', 'B', 'C', 'D', 'E']:
                         answer.remove(i)
                 if len(answer) == 0:
                     raise ValueError("Invalid answer")
@@ -435,6 +435,8 @@ class MaaWorker:
                         self.tasker.post_task("选C").wait()
                     elif i == "D":
                         self.tasker.post_task("选D").wait()
+                    elif i == "E":
+                        self.tasker.post_task("选E").wait()
                     time.sleep(0.2)
             time.sleep(0.5)
             # 下一题

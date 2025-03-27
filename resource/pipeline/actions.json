@@ -79,6 +79,12 @@
     "threshold": 0.9,
     "action": "Click"
   },
+  "选E": {
+    "recognition": "TemplateMatch",
+    "template": "../image/E.png",
+    "threshold": 0.9,
+    "action": "Click"
+  },
   "下一题": {
     "recognition": "TemplateMatch",
     "template": "../image/下一题.png",

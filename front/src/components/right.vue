@@ -44,6 +44,9 @@ onMounted(() => {
     log.value = log.value + "\n" + data
     if (data.includes("请求接管") && is_now(data.split(" ")[0]+" "+data.split(" ")[1])) {
       message.warning(data)
+      new Notification('请求接管', {
+        body: data + "\n" + "完成接管后请点击确定"
+      })
       dialog.warning({
         title: '请求接管',
         content: data + "\n" + "完成接管后请点击确定",
