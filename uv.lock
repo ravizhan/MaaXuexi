@@ -208,7 +208,7 @@ wheels = [
 
 [[package]]
 name = "maaxuexi"
-version = "1.5.8"
+version = "1.5.10"
 source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },

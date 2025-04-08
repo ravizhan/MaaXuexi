@@ -103,7 +103,6 @@
     "recognition": "TemplateMatch",
     "template": "../image/填空题视频.png",
     "action": "DoNothing",
-    "threshold": 0.7,
     "timeout": 1100,
     "inverse": true,
     "green_mask": true
@@ -111,7 +110,10 @@
   "查看提示": {
     "recognition": "TemplateMatch",
     "template": "../image/查看提示.png",
-    "action": "Click"
+    "action": "Click",
+    "timeout": 500,
+    "pre_delay": 100,
+    "post_delay": 0
   },
   "关闭提示": {
     "recognition": "TemplateMatch",

@@ -26,35 +26,35 @@ class AIResolver:
     @staticmethod
     def image_encode(img: np.ndarray) -> str:
         buffered = io.BytesIO()
-        Image.fromarray(img).save(buffered,format="JPEG")
+        im = Image.fromarray(img)
+        new_size = list(map(lambda x: round(x * 0.75), list(im.size)))
+        im.resize(new_size, 0)
+        im.save(buffered, format="JPEG")
         encoded_image = base64.b64encode(buffered.getvalue()).decode()
         return encoded_image
 
-    def resolve_choice(self, img1: np.ndarray, img2: np.ndarray) -> list[str] | None:
+    def resolve_choice(self, imgs: list[np.ndarray]) -> list[str] | None:
         url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
         data = {
             "model": "doubao-1-5-vision-pro-32k-250115",
             "messages": [
                 {
                     "role": "system",
-                    "content": "能力与角色:你是一位答题助手。\n背景信息:你会得到一张带有选择题的图片和一张带有答案的图片\n指令:你需要阅读分别阅读两张图片的内容，其中答案为红字部分，回答包含答案的选项\n输出风格:你无需给出推理过程以及任何解释。你只需要回答正确选项对应的ABCD，不得回答任何多余的文字，不得添加任何的标点符号。\n输出范围:我希望你仅仅回答 ABCD 中的一个或多个字母。"
+                    "content": "能力与角色:你是一位答题助手。\n背景信息:你会得到一张带有选择题的图片和一张带有答案的图片\n指令:你需要分别阅读两张图片的内容，其中答案为红字部分，回答包含答案的选项\n输出风格:你无需给出推理过程以及任何解释。你只需要回答正确选项对应的字母，不得回答任何多余的文字，不得添加任何的标点符号。\n输出范围:我希望你仅仅回答 ABCDE 中的一个或多个字母。"
                 },
                 {
                     "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": "data:image/jpg;base64," + self.image_encode(img1),
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": "data:image/jpg;base64," + self.image_encode(img2),
-                        }
-                    ],
+                    "content": [],
                 }
             ],
             "temperature": 0.2
         }
+        for i in imgs:
+            temp = {
+                "type": "image_url",
+                "image_url": "data:image/jpg;base64," + self.image_encode(i),
+            }
+            data["messages"][1]["content"].append(temp)
         response = self.session.post(url, json=data)
         try:
             if response.status_code == 200:
@@ -72,7 +72,7 @@ class AIResolver:
             answer = None
         return answer
 
-    def resolve_blank(self, img: np.ndarray) -> str | None:
+    def resolve_blank(self, imgs: list[np.ndarray]) -> str | None:
         url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
         data = {
             "model": "doubao-1-5-vision-pro-32k-250115",
@@ -83,16 +83,17 @@ class AIResolver:
                 },
                 {
                     "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": "data:image/jpg;base64," + self.image_encode(img),
-                        }
-                    ],
+                    "content": [],
                 }
             ],
             "temperature": 0.2
         }
+        for i in imgs:
+            temp = {
+                "type": "image_url",
+                "image_url": "data:image/jpg;base64," + self.image_encode(i),
+            }
+            data["messages"][1]["content"].append(temp)
         response = self.session.post(url, json=data)
         try:
             if response.status_code == 200:
@@ -104,7 +105,10 @@ class AIResolver:
             answer = None
         return answer
 
+
 resource = Resource()
+
+
 class MaaWorker:
     def __init__(self, queue: SimpleQueue, api_key):
         user_path = "./"
@@ -120,7 +124,7 @@ class MaaWorker:
         self.pause_flag = False
         self.send_log("MAA初始化成功")
 
-    def send_log(self,msg):
+    def send_log(self, msg):
         self.queue.put(f"{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())} {msg}")
         time.sleep(0.05)
 
@@ -182,9 +186,9 @@ class MaaWorker:
     def detect(self):
         result: TaskDetail = self.tasker.post_task("yolo_detect").wait().get()
         if result.status.failed:
-            return [],[]
+            return [], []
         details = result.nodes[0].recognition.raw_detail["all"]
-        boxes,labels = [],[]
+        boxes, labels = [], []
         for detail in details:
             boxes.append(detail["box"])
             labels.append(detail["label"])
@@ -195,12 +199,11 @@ class MaaWorker:
             "similarity": {
                 "recognition": "custom",
                 "custom_recognition": "SimilarityReco",
-                "custom_recognition_param":{"origin": img1_path, "pic": "../../"+img2_path}
+                "custom_recognition_param": {"origin": img1_path, "pic": "../../" + img2_path}
             }
         }
         result: TaskDetail = self.tasker.post_task("similarity", pipeline).wait().get()
         return result.nodes[0].recognition.best_result.detail == "failed"
-
 
     def task(self, tasks):
         self.stop_flag = False
@@ -234,7 +237,6 @@ class MaaWorker:
         self.send_log("所有任务完成")
         time.sleep(0.5)
 
-
     def read_article(self):
         self.send_log("开始任务：选读文章")
         finished_article = []
@@ -252,10 +254,11 @@ class MaaWorker:
             if len(boxes) == 0 or ("article" not in box_class and "article_image" not in box_class):
                 self.send_log(f"未识别到文章，正在滑动屏幕")
                 self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
-                                             randint(300, 400),
-                                             randint(1000, 1500)).wait()
+                                                  randint(300, 400),
+                                                  randint(1000, 1500)).wait()
                 continue
-            boxes, box_class = zip(*[(box, cls) for box, cls in zip(boxes, box_class) if cls in ["article", "article_image"]])
+            boxes, box_class = zip(
+                *[(box, cls) for box, cls in zip(boxes, box_class) if cls in ["article", "article_image"]])
             self.send_log(f"识别到{len(boxes)}篇文章")
             article_list = []
             for box in boxes:
@@ -264,7 +267,7 @@ class MaaWorker:
             for i in range(len(box_class)):
                 if self.stop_flag:
                     return
-                Image.fromarray(article_list[i][:, :, ::-1]).save("current.jpg","JPEG")
+                Image.fromarray(article_list[i][:, :, ::-1]).save("current.jpg", "JPEG")
                 if all(self.similarity_match("current.jpg", img2) for img2 in finished_article):
                     self.send_log(f"read_{len(finished_article)}")
                     Image.fromarray(article_list[i][:, :, ::-1]).save(f"read_{len(finished_article)}.jpg", "JPEG")
@@ -274,7 +277,8 @@ class MaaWorker:
                     for _ in range(5):
                         if self.stop_flag:
                             return
-                        self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),randint(300, 400), randint(1000, 1500)).wait()
+                        self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
+                                                          randint(300, 400), randint(1000, 1500)).wait()
                         t = randint(8, 10)
                         time.sleep(t)
                         reading_time += t
@@ -283,7 +287,7 @@ class MaaWorker:
                     time.sleep(randint(3, 5))
                     finished_article.append(f"read_{len(finished_article)}.jpg")
             self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
-                                         randint(300, 400), randint(1000, 1500)).wait()
+                                              randint(300, 400), randint(1000, 1500)).wait()
         self.send_log("选读文章任务完成")
 
     def watch_video(self):
@@ -302,8 +306,8 @@ class MaaWorker:
             if len(boxes) == 0 or "video" not in box_class:
                 self.send_log(f"未识别到视频，正在滑动屏幕")
                 self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
-                                             randint(300, 400),
-                                             randint(1000, 1500)).wait()
+                                                  randint(300, 400),
+                                                  randint(1000, 1500)).wait()
                 continue
             boxes, box_class = zip(*[(box, cls) for box, cls in zip(boxes, box_class) if cls in ["video"]])
             self.send_log(f"识别到{len(boxes)}个视频")
@@ -329,7 +333,8 @@ class MaaWorker:
                     self.tasker.post_task("返回2").wait()
                     time.sleep(randint(3, 5))
                     finished_video.append(f"video_{len(video_list)}.jpg")
-            self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),randint(300, 400), randint(1000, 1500)).wait()
+            self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
+                                              randint(300, 400), randint(1000, 1500)).wait()
         self.send_log("视听学习任务完成")
 
     def daily_answer(self):
@@ -349,12 +354,12 @@ class MaaWorker:
         self.send_log("加载成功")
         # 滑动到每日答题按钮
         self.tasker.controller.post_swipe(randint(200, 300), randint(1000, 1100), randint(500, 600), randint(100, 200),
-                                     randint(1000, 1500)).wait()
+                                          randint(1000, 1500)).wait()
         time.sleep(randint(1, 2))
         # 点击每日答题按钮
         result: TaskDetail = self.tasker.post_task("每日答题").wait().get()
         box = result.nodes[0].recognition.best_result.box
-        self.tasker.controller.post_click(box[0]+randint(10,30),box[1]+randint(10,30))
+        self.tasker.controller.post_click(box[0] + randint(10, 30), box[1] + randint(10, 30))
         self.send_log("开始答题")
         if self.stop_flag:
             return
@@ -367,7 +372,7 @@ class MaaWorker:
             # 判断是不是填空题
             recog_result: TaskDetail = self.tasker.post_task("填空题").wait().get()  # 单选题和填空题相似度竟然有0.75，离谱
             if not recog_result.nodes:
-                self.send_log(f"第{i+1}题 填空题")
+                self.send_log(f"第{i + 1}题 填空题")
                 recog_result: TaskDetail = self.tasker.post_task("填空题视频").wait().get()
                 # 判断有没有视频，有的话调用AI解答
                 if not recog_result.nodes:
@@ -375,7 +380,7 @@ class MaaWorker:
                     # 截图
                     image = self.tasker.controller.post_screencap().wait().get()
                     # AI解答
-                    answer = self.ai_resolver.resolve_blank(image)
+                    answer = self.ai_resolver.resolve_blank([image])
                     if answer is None:
                         plyer.notification.notify(
                             title="MaaXuexi",
@@ -388,12 +393,15 @@ class MaaWorker:
                         continue
                 else:
                     self.send_log("查看提示")
-                    self.tasker.post_task("查看提示").wait()
+                    click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
+                    if not click_result.nodes:
+                        self.tasker.controller.post_swipe(randint(590, 600), randint(1200, 1210), randint(620, 630),
+                                                          randint(1100, 1110), randint(200, 300)).wait()
                     time.sleep(1)
                     find_result: TaskDetail = self.tasker.post_task("find_red").wait().get()
                     red_border = find_result.nodes[0].recognition.best_result.box
-                    # self.send_log(red_border)
-                    rec_result: TaskDetail = self.tasker.post_task("rec_answer",{"rec_answer": {"roi": red_border}}).wait().get()
+                    rec_result: TaskDetail = self.tasker.post_task("rec_answer",
+                                                                   {"rec_answer": {"roi": red_border}}).wait().get()
                     answer = rec_result.nodes[0].recognition.best_result.text
                     self.tasker.post_task("关闭提示").wait()
                 time.sleep(1)
@@ -403,18 +411,23 @@ class MaaWorker:
                 self.tasker.controller.post_input_text(answer).wait()
                 self.send_log("输入完成")
             else:
-                self.send_log(f"第{i+1}题 选择题")
+                self.send_log(f"第{i + 1}题 选择题")
+                img_list = []
                 # 问题截图
-                img1 = self.tasker.controller.post_screencap().wait().get()
+                img_list.append(self.tasker.controller.post_screencap().wait().get())
                 # 答案截图
-                self.tasker.post_task("查看提示").wait()
+                click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
+                if not click_result.nodes:
+                    self.tasker.controller.post_swipe(randint(590, 600), randint(1200, 1210), randint(620, 630),
+                                                      randint(1100, 1110), randint(200, 300)).wait()
+                    self.tasker.post_task("查看提示").wait()
+                    img_list.append(self.tasker.controller.post_screencap().wait().get())
                 time.sleep(1)
-                img2 = self.tasker.controller.post_screencap().wait().get()
+                img_list.append(self.tasker.controller.post_screencap().wait().get())
                 self.tasker.post_task("关闭提示").wait()
-                img2 = img2[500:1280, 0:720]
                 time.sleep(1)
                 # AI解答
-                answer = self.ai_resolver.resolve_choice(img1, img2)
+                answer = self.ai_resolver.resolve_choice(img_list)
                 if answer is None:
                     plyer.notification.notify(
                         title="MaaXuexi",
@@ -455,7 +468,6 @@ class MaaWorker:
             self.send_log("发现验证码，请求接管")
             self.pause()
 
-
     def funny_answer(self):
         self.send_log("开始任务：趣味答题")
         pass
@@ -464,9 +476,9 @@ class MaaWorker:
 @resource.custom_recognition("SimilarityReco")
 class SimilarityReco(CustomRecognition):
     def analyze(
-        self,
-        context,
-        argv: CustomRecognition.AnalyzeArg,
+            self,
+            context,
+            argv: CustomRecognition.AnalyzeArg,
     ) -> CustomRecognition.AnalyzeResult:
         img1 = json.loads(argv.custom_recognition_param)["origin"]
         img1 = np.asarray(Image.open(img1))
