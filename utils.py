@@ -114,6 +114,8 @@ class AIResolver:
 
 
 resource = Resource()
+resource.set_cpu()
+resource.post_bundle("./resource").wait()
 
 
 class MaaWorker:

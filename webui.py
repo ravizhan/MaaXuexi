@@ -39,6 +39,7 @@ app_state = AppState()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await asyncio.sleep(1)
     webbrowser.open_new("http://127.0.0.1:8000")
     yield
 
