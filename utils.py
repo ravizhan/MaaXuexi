@@ -1,15 +1,16 @@
-import base64
-import io
 import json
 import time
 import traceback
+from base64 import b64encode
+from io import BytesIO
 from queue import SimpleQueue
 from random import randint
 
-import httpx
 import numpy as np
 import plyer
 from PIL import Image
+from PIL import ImageFilter
+from httpx import Client
 from maa.controller import AdbController
 from maa.custom_recognition import CustomRecognition
 from maa.define import TaskDetail
@@ -20,18 +21,30 @@ from maa.toolkit import Toolkit
 
 class AIResolver:
     def __init__(self, api_key):
-        self.session = httpx.Client()
+        self.session = Client()
         self.session.headers = {"Authorization": f"Bearer {api_key}"}
 
     @staticmethod
     def image_encode(img: np.ndarray) -> str:
-        buffered = io.BytesIO()
+        buffered = BytesIO()
         im = Image.fromarray(img)
-        new_size = list(map(lambda x: round(x * 0.75), list(im.size)))
-        im.resize(new_size, 0)
+        new_size = list(map(lambda x: round(x * 0.5), list(im.size)))
+        im = im.resize(new_size, Image.Resampling.LANCZOS)
+        im = im.filter(ImageFilter.SHARPEN)
         im.save(buffered, format="JPEG")
-        encoded_image = base64.b64encode(buffered.getvalue()).decode()
+        encoded_image = b64encode(buffered.getvalue()).decode()
         return encoded_image
+
+    @staticmethod
+    def image_combine(imgs: list[np.ndarray]) -> np.ndarray:
+        # 创建一个新的空白图片
+        new_img = np.zeros((1280, len(imgs) * 720, 3), dtype=np.uint8)
+        # 将每张图片粘贴到新图片上
+        x_offset = 0
+        for img in imgs:
+            new_img[:img.shape[0], x_offset:x_offset + img.shape[1]] = img
+            x_offset += img.shape[1]
+        return new_img
 
     def resolve_choice(self, imgs: list[np.ndarray]) -> list[str] | None:
         url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
@@ -44,17 +57,14 @@ class AIResolver:
                 },
                 {
                     "role": "user",
-                    "content": [],
+                    "content": [{
+                        "type": "image_url",
+                        "image_url": "data:image/jpg;base64," + self.image_encode(self.image_combine(imgs)),
+                    }],
                 }
             ],
             "temperature": 0.2
         }
-        for i in imgs:
-            temp = {
-                "type": "image_url",
-                "image_url": "data:image/jpg;base64," + self.image_encode(i),
-            }
-            data["messages"][1]["content"].append(temp)
         response = self.session.post(url, json=data)
         try:
             if response.status_code == 200:
@@ -83,17 +93,14 @@ class AIResolver:
                 },
                 {
                     "role": "user",
-                    "content": [],
+                    "content": [{
+                        "type": "image_url",
+                        "image_url": "data:image/jpg;base64," + self.image_encode(self.image_combine(imgs)),
+                    }],
                 }
             ],
             "temperature": 0.2
         }
-        for i in imgs:
-            temp = {
-                "type": "image_url",
-                "image_url": "data:image/jpg;base64," + self.image_encode(i),
-            }
-            data["messages"][1]["content"].append(temp)
         response = self.session.post(url, json=data)
         try:
             if response.status_code == 200:
@@ -115,8 +122,6 @@ class MaaWorker:
         Toolkit.init_option(user_path)
 
         self.queue = queue
-        resource.set_cpu()
-        resource.post_bundle("./resource").wait()
         self.tasker = Tasker()
         self.connected = False
         self.ai_resolver = AIResolver(api_key=api_key)
@@ -224,7 +229,7 @@ class MaaWorker:
             if self.stop_flag:
                 self.send_log("任务已终止")
                 return
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
             plyer.notification.notify(
                 title="MaaXuexi",
