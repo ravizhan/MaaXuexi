@@ -61,7 +61,7 @@ const rules = {
     validator(rule, value) {
       if (!value) {
         return new Error("请输入 API KEY");
-      } else if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value)) {
+      } else if (!/^sk-[a-z]{48}$/.test(value)) {
         return new Error("格式错误");
       }
       return true;

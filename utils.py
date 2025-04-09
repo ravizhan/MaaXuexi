@@ -23,6 +23,7 @@ class AIResolver:
     def __init__(self, api_key):
         self.session = Client()
         self.session.headers = {"Authorization": f"Bearer {api_key}"}
+        self.url = "https://api.siliconflow.cn/v1/chat/completions"
 
     @staticmethod
     def image_encode(img: np.ndarray) -> str:
@@ -47,29 +48,32 @@ class AIResolver:
         return new_img
 
     def resolve_choice(self, imgs: list[np.ndarray]) -> list[str] | None:
-        url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
         data = {
-            "model": "doubao-1-5-vision-pro-32k-250115",
+            "model": "Pro/Qwen/Qwen2.5-VL-7B-Instruct",
             "messages": [
                 {
                     "role": "system",
-                    "content": "能力与角色:你是一位答题助手。\n背景信息:你会得到一张带有选择题的图片和一张带有答案的图片\n指令:你需要分别阅读两张图片的内容，其中答案为红字部分，回答包含答案的选项\n输出风格:你无需给出推理过程以及任何解释。你只需要回答正确选项对应的字母，不得回答任何多余的文字，不得添加任何的标点符号。\n输出范围:我希望你仅仅回答 ABCDE 中的一个或多个字母。"
+                    "content": [{
+                        "type": "text",
+                        "text": "能力与角色:你是一位答题助手。\n背景信息:你会得到一张左边为选择题右边为答案的图片\n指令:你需要仔细阅读图片中的两部分内容，其中答案为红字部分，回答包含答案的选项\n输出风格:你无需给出推理过程以及任何解释。你只需要回答正确选项对应的字母，不得回答任何多余的文字，不得添加任何的标点符号。\n输出范围:我希望你仅仅回答 ABCDE 中的一个或多个字母。"
+                    }]
                 },
                 {
                     "role": "user",
                     "content": [{
                         "type": "image_url",
-                        "image_url": "data:image/jpg;base64," + self.image_encode(self.image_combine(imgs)),
-                    }],
+                        "image_url": {
+                            "url": "data:image/jpg;base64," + self.image_encode(self.image_combine(imgs))
+                        },
+                    }]
                 }
             ],
             "temperature": 0.2
         }
-        response = self.session.post(url, json=data)
+        response = self.session.post(self.url, json=data)
         try:
             if response.status_code == 200:
                 result = response.json()
-                print(result)
                 answer = list(result["choices"][0]["message"]["content"])
                 for i in answer.copy():
                     if i not in ['A', 'B', 'C', 'D', 'E']:
@@ -77,31 +81,40 @@ class AIResolver:
                 if len(answer) == 0:
                     raise ValueError("Invalid answer")
             else:
+                print(response.json())
                 answer = None
         except:
+            print(response.json())
             answer = None
         return answer
 
-    def resolve_blank(self, imgs: list[np.ndarray]) -> str | None:
-        url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+    def resolve_blank(self, imgs: list[np.ndarray], answer: bool, blank_num: int) -> str | None:
         data = {
-            "model": "doubao-1-5-vision-pro-32k-250115",
+            "model": "Pro/Qwen/Qwen2.5-VL-7B-Instruct",
             "messages": [
                 {
                     "role": "system",
-                    "content": "能力与角色:你是一位答题助手\n背景信息:你会得到一张带有问题的图片\n指令:你需要阅读该图片中的问题，认真理解题目，确认填空的数量，思考后作出回答\n输出风格:你无需给出推理过程，也无需给出任何解释。你只需要回答空缺处应当填的内容，填充字数应当与空缺数量相同"
+                    "content": [{
+                        "type": "text",
+                        "text": "能力与角色:你是一位答题助手\n背景信息:你会得到一张左边为填空题右边为答案的图片\n指令:你需要仔细阅读图片中的两部分内容，其中答案为红字部分，回答空缺处应当填写的内容\n输出风格:你无需给出推理过程，也无需给出任何解释。你只需要回答空缺处应当填的内容，填充字数应当与空缺数量相同"
+                    }]
                 },
                 {
                     "role": "user",
                     "content": [{
                         "type": "image_url",
-                        "image_url": "data:image/jpg;base64," + self.image_encode(self.image_combine(imgs)),
-                    }],
+                        "image_url": {
+                            "url": "data:image/jpg;base64," + self.image_encode(self.image_combine(imgs))
+                        },
+                    }]
                 }
             ],
             "temperature": 0.2
         }
-        response = self.session.post(url, json=data)
+        if not answer:
+            data["messages"][0]["content"] = f"能力与角色:你是一位答题助手\n背景信息:你会得到一张包含填空题的图片\n指令:你需要阅读该图片中的问题，认真理解题目和前后文，其中答案为{blank_num}个字符，思考后作出回答，确保填入答案后的全文逻辑正确，语义正确\n输出风格:你无需给出推理过程，也无需给出任何解释。你只需要回答空缺处应当填的内容，填充字数应当为{blank_num}"
+            data["model"] = "Qwen/Qwen2.5-VL-32B-Instruct"
+        response = self.session.post(self.url, json=data)
         try:
             if response.status_code == 200:
                 result = response.json()
@@ -387,7 +400,7 @@ class MaaWorker:
                     # 截图
                     image = self.tasker.controller.post_screencap().wait().get()
                     # AI解答
-                    answer = self.ai_resolver.resolve_blank([image])
+                    answer = self.ai_resolver.resolve_blank([image], False)
                     if answer is None:
                         plyer.notification.notify(
                             title="MaaXuexi",
