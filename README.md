@@ -75,31 +75,18 @@
 
 ### AI配置
 
-本项目使用字节跳动的 Doubao-1.5-vision-pro-32k 来解决选择题和部分填空题。
-> 无广，问就是便宜而且效果不错
+本项目使用[硅基流动](https://siliconflow.cn/)平台提供的 Qwen2.5-VL-7B-Instruct 来解决选择题和部分填空题。
+> 使用[邀请链接注册](https://cloud.siliconflow.cn/i/krMRM7qS)可获赠14元余额，可长期使用
 
-先到 [火山引擎](https://www.volcengine.com/) 注册账号并实名
-
-然后到 [火山方舟控制台](https://console.volcengine.com/ark/region:ark+cn-beijing/openManagement) 开通 Doubao-1.5-vision-pro-32k 
-
-![image-20250123170639338](https://img.ravi.top/img/4e1072e68a1f0a9892e8fb248619be4c.png)
-
-最后到 [API Key 管理](https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey) ，创建API Key并复制
-
-![image-20250123171536042](https://img.ravi.top/img/543d40dfb2c2e28423652befabc4a3ba.png)
+注册登录后，在 [API密钥](https://cloud.siliconflow.cn/account/ak) 页面，点击 `新建API密钥` 按钮，新建密钥然后复制
 
 **关于费用**
 
-调用一次AI大概消耗1600tokens，其中输出tokens极少，可忽略不计
+调用一次AI大概消耗800tokens，其中输出tokens极少，可忽略不计
 
-按照每日答题5道题，趣味答题5道题计算，一个月大约消耗47万tokens
+按照每日答题5道题，趣味答题5道题计算，一个月大约消耗24万tokens
 
-![](https://img.ravi.top/img/ced39313100f7e59538ea989b8d3374b.png)
-
-一个月费用在1.4元左右
-
-此外，火山引擎注册即送50万tokens免费推理额度，足够免费使用1个月
-
+目前 Qwen2.5-VL-7B-Instruct 的价格为 0.35元/百万tokens，一个月仅需0.085元。
 ### 运行
 #### windows
 下载安装 [vc_redist](https://aka.ms/vs/17/release/vc_redist.x64.exe)
