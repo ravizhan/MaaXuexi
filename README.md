@@ -42,7 +42,9 @@
 
 由于前一天看过的视频，第二天不会计算分数，所以大概率只有7分 
 ### 每日答题
-选择题一般没有问题，除非题目一页放不下，会出现识别错误，暂时无法解决
+选择题和填空题均可自动识别
+
+选择题基本全对
 
 填空题一般也没有问题，除非答案有换行，会出现识别错误，暂时也无法解决
 ### 趣味答题
@@ -123,3 +125,13 @@
 基于本项目使用的 [MaaFramework](https://pypi.org/project/MaaFw/) 和 [ultralytics](https://github.com/ultralytics/ultralytics) (YOLO模型) ，本项目采用 [AGPLv3协议](https://github.com/ravizhan/MaaXuexi/blob/main/LICENSE) 开源
 
 **本项目完全免费，严禁倒卖或用于盈利目的**
+
+## Star History
+
+<a href="https://www.star-history.com/#ravizhan/MaaXuexi&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=ravizhan/MaaXuexi&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=ravizhan/MaaXuexi&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=ravizhan/MaaXuexi&type=Date" />
+ </picture>
+</a>
