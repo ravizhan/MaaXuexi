@@ -416,7 +416,7 @@ class MaaWorker:
                     click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
                     if not click_result.nodes:
                         self.tasker.controller.post_swipe(randint(590, 600), randint(1200, 1210), randint(620, 630),
-                                                          randint(1100, 1110), randint(200, 300)).wait()
+                                                          randint(1000, 1010), randint(300, 400)).wait()
                     time.sleep(1)
                     find_result: TaskDetail = self.tasker.post_task("find_red").wait().get()
                     red_border = find_result.nodes[0].recognition.best_result.box
