@@ -37,7 +37,7 @@ jobs:
           path: page
           key: ${{ steps.Store-Cache-Key.outputs.cache-key }}
 
-  nuitka-build:
+  build:
     env:
       UV_INDEX: https://pypi.org/simple
     strategy:
@@ -90,12 +90,30 @@ jobs:
           xcopy .\config\ build\webui.dist\config\ /S /I
           xcopy .\page\ build\webui.dist\page\ /S /I
 
+      - name: Create Version file
+        run: echo "${{ github.ref_name }}" >> build/webui.dist/version
+
       - name: Determine OS Name
         uses: rishabhgupta/split-by@v1.0.1
         id: split
         with:
           string: ${{ matrix.os }}
           split-by: '-'
+
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: "updater/go.mod"
+
+      - name: Build Updater Windows
+        if: ${{ matrix.os == 'windows-latest' }}
+        working-directory: ./updater
+        run: go build -o ../build/webui.dist/Updater.exe
+
+      - name: Build Updater Linux Macos
+        if: ${{ matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest' }}
+        working-directory: ./updater
+        run: go build -o ../build/webui.dist/Updater
 
       - name: Compress Build
         run: 7z a -t7z -mx=9 -mmt -ms -r MaaXuexi-${{ steps.split.outputs._0 }}-${{ github.ref_name }}.7z "./build/webui.dist/*"
