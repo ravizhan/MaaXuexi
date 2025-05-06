@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/md5"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"github.com/hashicorp/go-version"
 	"io"
@@ -79,30 +78,30 @@ func GenerateMetadata(dictionary string) (map[string]interface{}, error) {
 }
 
 // Powered by DeepSeek V3
-func compareJSON(oldData, newData map[string]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
-	for key, newValue := range newData {
-		oldValue, exists := oldData[key]
-		if !exists {
-			// 处理新增的键
-			result[key] = newValue
-			continue
-		}
-		// 递归处理嵌套map
-		if newMap, ok := newValue.(map[string]interface{}); ok {
-			if oldMap, ok := oldValue.(map[string]interface{}); ok {
-				nestedResult := compareJSON(oldMap, newMap)
-				if len(nestedResult) > 0 {
-					result[key] = nestedResult
-				}
-			} else {
-				result[key] = newValue
+func compareJSON(data1, data2 map[string]interface{}) map[string]string {
+	result := make(map[string]string)
+
+	var flatten func(string, map[string]interface{}, *map[string]string)
+	flatten = func(prefix string, m map[string]interface{}, res *map[string]string) {
+		for k, v := range m {
+			key := prefix + k
+			switch val := v.(type) {
+			case string:
+				(*res)[key] = val
+			case map[string]interface{}:
+				flatten(key+"/", val, res)
 			}
-			continue
 		}
-		// 处理值变更
-		if fmt.Sprintf("%v", oldValue) != fmt.Sprintf("%v", newValue) {
-			result[key] = newValue
+	}
+
+	flat1 := make(map[string]string)
+	flat2 := make(map[string]string)
+	flatten("", data1, &flat1)
+	flatten("", data2, &flat2)
+
+	for k, v2 := range flat2 {
+		if v1, exists := flat1[k]; !exists || v1 != v2 {
+			result[k] = v2
 		}
 	}
 	return result
@@ -144,35 +143,80 @@ func GetRemoteMetadata(goos string, version string) map[string]interface{} {
 	return metadata
 }
 
+func GetDownloadLink(md5hash string) string {
+	resp, err := http.Get("https://update.ravi.cool/download/" + md5hash)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		fmt.Println("Error: ", resp.Status)
+		return ""
+	}
+	var data map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return ""
+	}
+	link, ok := data["download_link"].(string)
+	if !ok {
+		fmt.Println("Error: link is not a string")
+		return ""
+	}
+	return link
+}
+
 func Update(CurrentVersion string) {
 	NewVersion, _ := CheckUpdate()
 	v1, err := version.NewVersion(NewVersion)
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
 	v2, err := version.NewVersion(CurrentVersion)
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
 	if v1.LessThan(v2) {
 		fmt.Println("Not updating, current version is newer")
 	}
 	localMetadata, err := GenerateMetadata("./")
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
 	file1, _ := os.Create("local.json")
 	defer file1.Close()
 	encoder1 := json.NewEncoder(file1)
 	encoder1.SetIndent("", "  ")
-	encoder1.Encode(localMetadata)
+	err = encoder1.Encode(localMetadata)
 	if err != nil {
 		fmt.Println("Error:", err)
 	}
 	goos := CheckOs()
 	remoteMetadata := GetRemoteMetadata(goos, NewVersion)
 	result := compareJSON(localMetadata, remoteMetadata)
+	for k, v := range result {
+		fmt.Println("File:", k, "Hash:", v)
+		link := GetDownloadLink(v)
+		if link == "" {
+			fmt.Println("Error: link is empty")
+			return
+		}
+		fmt.Println("Download link:", link)
+	}
 }
 
 func main() {
-	var update bool
-	var v string
-	flag.BoolVar(&update, "update", false, "Update directory metadata")
-	flag.StringVar(&v, "v", "", "Current version")
-	flag.Parse()
-
-	if update {
+	content, err := os.ReadFile("version")
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
+	v := string(content)
+	if v == "" {
+		fmt.Println("Error: version is empty")
+		return
+	} else {
 		Update(v)
 	}
 }
