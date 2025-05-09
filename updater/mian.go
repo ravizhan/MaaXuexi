@@ -168,6 +168,27 @@ func GetDownloadLink(md5hash string) string {
 	return link
 }
 
+func DownloadFile(url, filename string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("Error:", err.Error())
+		return err
+	}
+	defer resp.Body.Close()
+	f, err := os.Create(filename)
+	if err != nil {
+		fmt.Println("Error:", err.Error())
+		return err
+	}
+	defer f.Close()
+	_, err = io.Copy(f, resp.Body)
+	if err != nil {
+		fmt.Println("Error:", err.Error())
+		return err
+	}
+	return nil
+}
+
 func Update(CurrentVersion string) {
 	NewVersion, _ := CheckUpdate()
 	v1, err := version.NewVersion(NewVersion)
@@ -204,6 +225,11 @@ func Update(CurrentVersion string) {
 			return
 		}
 		fmt.Println("Download link:", link)
+		err := DownloadFile(link, k)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
 	}
 }
 

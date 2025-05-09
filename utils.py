@@ -412,6 +412,7 @@ class MaaWorker:
                         self.pause()
                         continue
                 else:
+                    # 正常填空题
                     self.send_log("查看提示")
                     click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
                     if not click_result.nodes:
