@@ -158,9 +158,9 @@ class MaaWorker:
         self.api_key = api_key
         self.ai_resolver = AIResolver(
             api_key=api_key,
-            choice_model=choice_model or "Qwen/Qwen2.5-7B-Instruct",
-            blank_model=blank_model or "Qwen/Qwen2.5-7B-Instruct",
-            blank_large_model=blank_large_model or "Qwen/Qwen2.5-32B-Instruct",
+            choice_model=choice_model or "Qwen/Qwen2.5-VL-7B-Instruct",
+            blank_model=blank_model or "Qwen/Qwen2.5-VL-7B-Instruct",
+            blank_large_model=blank_large_model or "Qwen/Qwen2.5-VL-32B-Instruct",
         )
         self.stop_flag = False
         self.pause_flag = False
