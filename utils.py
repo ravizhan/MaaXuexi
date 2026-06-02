@@ -359,7 +359,35 @@ class MaaWorker:
 
     def daily_answer(self):
         self.send_log("开始任务：每日答题")
-        self.tasker.post_task("积分").wait()
+        # 旧逻辑
+        # self.tasker.post_task("积分").wait()
+        # 积分按钮的识别难度似乎还是太高了，试图通过更大的我的“按钮”，进到界面来点一下学习积分按钮也能进一个界面
+        # 点击"我的"按钮
+        self.tasker.post_task("我的").wait()
+        # 等待 0.5 秒 + 0-0.5 秒随机时间
+        wait_time = 0.5 + randint(0, 500) / 1000
+        time.sleep(wait_time)
+        # 识别并点击"学习积分"按钮
+        learning_score_result: TaskDetail | None = None
+        retry_count = 0
+
+        while retry_count < 5 and not self.stop_flag:
+            wait_time = 1 + randint(0, 500) / 1000
+            time.sleep(wait_time)
+
+            learning_score_result = self.tasker.post_task("学习积分").wait().get()
+            if learning_score_result.nodes:
+                box = learning_score_result.nodes[0].recognition.best_result.box
+                self.tasker.controller.post_click(box[0] + randint(10, 30), box[1] + randint(10, 30))
+                self.send_log("已点击学习积分按钮")
+                break
+
+            retry_count += 1
+            self.send_log(f"未检测到学习积分按钮，重试 {retry_count}/5")
+
+        if not learning_score_result or not learning_score_result.nodes:
+            self.send_log("学习积分按钮未找到，已达到最大重试次数")
+            self.tasker.post_task("积分").wait()
         # 等待界面加载完毕
         time.sleep(10)
         load_result: TaskDetail = self.tasker.post_task("加载失败").wait().get()

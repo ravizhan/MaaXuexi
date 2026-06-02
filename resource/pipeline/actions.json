@@ -39,11 +39,23 @@
     "timeout": 1100,
     "inverse": true
   },
+  "我的": {
+    "recognition": "TemplateMatch",
+    "template": "../image/我的.png",
+    "threshold": 0.85,
+    "action": "Click"
+  },
+  "学习积分": {
+    "recognition": "TemplateMatch",
+    "template": "../image/学习积分.png",
+    "threshold": 0.85,
+    "action": "Click"
+  },
   "每日答题": {
     "recognition": "TemplateMatch",
     "template": "../image/每日答题.png",
     "roi" : [0,330,720,950],
-    "threshold": 0.9,
+    "threshold": 0.85,
     "action": "DoNothing"
   },
   "填空题": {
