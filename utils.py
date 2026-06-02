@@ -23,9 +23,9 @@ class AIResolver:
     def __init__(
             self,
             api_key,
-            choice_model: str = "Qwen/Qwen2.5-7B-Instruct",
-            blank_model: str = "Qwen/Qwen2.5-7B-Instruct",
-            blank_large_model: str = "Qwen/Qwen2.5-32B-Instruct",
+            choice_model: str = "Qwen/Qwen2.5-VL-7B-Instruct",
+            blank_model: str = "Qwen/Qwen2.5-VL-7B-Instruct",
+            blank_large_model: str = "Qwen/Qwen2.5-VL-32B-Instruct",
     ):
         self.session = Client()
         self.session.headers = {"Authorization": f"Bearer {api_key}"}
