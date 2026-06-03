@@ -16,6 +16,9 @@ from utils import MaaWorker
 
 class ConfigModel(BaseModel):
     api_key: str
+    choice_model: str | None = None
+    blank_model: str | None = None
+    blank_large_model: str | None = None
 
 class DeviceModel(BaseModel):
     name: str
@@ -55,7 +58,13 @@ def get_settings():
     with open("./config/config.json") as f:
         config = json.load(f)
     if config["api_key"] != "" and app_state.worker is None:
-        app_state.worker = MaaWorker(app_state.message_conn,api_key=config["api_key"])
+        app_state.worker = MaaWorker(
+            app_state.message_conn,
+            api_key=config["api_key"],
+            choice_model=config.get("choice_model"),
+            blank_model=config.get("blank_model"),
+            blank_large_model=config.get("blank_large_model")
+        )
     return config
 
 @app.post("/api/settings")
@@ -63,7 +72,20 @@ def post_settings(config: ConfigModel):
     with open("./config/config.json", "w") as f:
         f.write(config.model_dump_json(indent=4))
     if app_state.worker is None:
-        app_state.worker = MaaWorker(app_state.message_conn, api_key=config.api_key)
+        app_state.worker = MaaWorker(
+            app_state.message_conn,
+            api_key=config.api_key,
+            choice_model=config.choice_model,
+            blank_model=config.blank_model,
+            blank_large_model=config.blank_large_model
+        )
+    else:
+        # 如果worker已存在，更新其模型配置
+        app_state.worker.update_ai_models(
+            choice_model=config.choice_model,
+            blank_model=config.blank_model,
+            blank_large_model=config.blank_large_model
+        )
     return {"status": "success"}
 
 @app.get("/api/get_device")
