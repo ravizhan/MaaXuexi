@@ -382,7 +382,19 @@ class MaaWorker:
 
     def daily_answer(self):
         self.send_log("开始任务：每日答题")
-        self.tasker.post_task("积分").wait()
+        # 积分按钮的识别难度似乎还是太高了，试图通过更大的我的“按钮”，进到界面来点一下学习积分按钮也能进一个界面
+        self.tasker.post_task("我的").wait()
+        wait_time = 0.5 + randint(0, 500) / 1000
+        time.sleep(wait_time)
+        learning_score_result: TaskDetail = self.tasker.post_task("学习积分").wait().get()
+        if not learning_score_result.nodes:
+            self.send_log("未找到学习积分按钮")
+            self.tasker.post_task("返回2").wait()
+            time.sleep(1)
+            self.tasker.post_task("积分").wait()
+        else:
+            box = learning_score_result.nodes[0].recognition.best_result.box
+            self.tasker.controller.post_click(box[0] + randint(10, 30), box[1] + randint(10, 30))
         # 等待界面加载完毕
         time.sleep(10)
         load_result: TaskDetail = self.tasker.post_task("加载失败").wait().get()
