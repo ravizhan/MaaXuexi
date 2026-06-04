@@ -16,6 +16,7 @@ from utils import MaaWorker
 
 class ConfigModel(BaseModel):
     api_key: str
+    model: str = "Qwen/Qwen3.6-35B-A3B"
 
 class DeviceModel(BaseModel):
     name: str
@@ -55,7 +56,11 @@ def get_settings():
     with open("./config/config.json") as f:
         config = json.load(f)
     if config["api_key"] != "" and app_state.worker is None:
-        app_state.worker = MaaWorker(app_state.message_conn,api_key=config["api_key"])
+        app_state.worker = MaaWorker(
+            app_state.message_conn,
+            api_key=config["api_key"],
+            model=config["model"],
+        )
     return config
 
 @app.post("/api/settings")
@@ -63,7 +68,15 @@ def post_settings(config: ConfigModel):
     with open("./config/config.json", "w") as f:
         f.write(config.model_dump_json(indent=4))
     if app_state.worker is None:
-        app_state.worker = MaaWorker(app_state.message_conn, api_key=config.api_key)
+        app_state.worker = MaaWorker(
+            app_state.message_conn,
+            api_key=config.api_key,
+            model=config.model,
+        )
+    else:
+        app_state.worker.update_ai_models(
+            model=config.model
+        )
     return {"status": "success"}
 
 @app.get("/api/get_device")
