@@ -35,6 +35,7 @@ class AppState:
         self.child_process = None
         self.worker = None
         self.history_message = []
+        self.current_status = None
 app_state = AppState()
 
 @asynccontextmanager
@@ -107,6 +108,10 @@ def stop():
 def going_on():
     app_state.worker.pause_flag = False
     return {"status": "success"}
+
+@app.get("/api/status")
+def status():
+    return {"status": "running"}
 
 @app.websocket("/api/ws")
 async def websocket_endpoint(websocket: websockets.WebSocket):
