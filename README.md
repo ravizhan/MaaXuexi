@@ -61,7 +61,7 @@
 
 - 安卓模拟器
 
-  安卓模拟器推荐使用 [雷电模拟器](https://www.ldmnq.com/) 或 [MuMu 模拟器 12](https://mumu.163.com/)
+  安卓模拟器推荐使用[MuMu 模拟器](https://mumu.163.com/)
   
   请将模拟器分辨率设置为 1280x720 DPI 240 横屏模式
 
@@ -77,8 +77,7 @@
 
 ### AI配置
 
-本项目使用[硅基流动](https://siliconflow.cn/)平台提供的 Qwen2.5-VL-7B-Instruct 来解决选择题和部分填空题。
-> 使用[邀请链接注册](https://cloud.siliconflow.cn/i/krMRM7qS)可获赠14元余额，可长期使用
+本项目默认使用[硅基流动](https://siliconflow.cn/)平台提供的 Qwen3.6-35B-A3B 来解决选择题和部分填空题。可自行更换其他多模态模型。
 
 注册登录后，在 [API密钥](https://cloud.siliconflow.cn/account/ak) 页面，点击 `新建API密钥` 按钮，新建密钥然后复制
 
@@ -88,7 +87,7 @@
 
 按照每日答题5道题，趣味答题5道题计算，一个月大约消耗24万tokens
 
-目前 Qwen2.5-VL-7B-Instruct 的价格为 0.35元/百万tokens，一个月仅需0.085元。
+目前 Qwen3.6-35B-A3B 的输入价格为 0.4元/百万tokens，一个月仅需0.1元。
 ### 运行
 #### windows
 下载安装 [vc_redist](https://aka.ms/vs/17/release/vc_redist.x64.exe)
@@ -108,18 +107,15 @@
 ![](https://img.ravi.top/img/470c7498ff549abdb61f820522ace6f9.png)
 
 1. 在 `设置` 中填入刚刚复制的API Key，点击 `保存`
-2. 在 `设备栏` 下拉选择模拟器，点击 `连接`
-3. 在 `任务栏` 勾选需要完成的任务，点击 `开始任务`
-
-连接设备后会自动打开APP，请确保APP已登录再开始任务
-> **注意**：目前mumu模拟器会出现分辨率识别错误的情况，请手动打开APP后再连接设备
+2. 在 `设备栏` 下拉选择模拟器，在模拟器中手动打开APP后，点击 `连接`
+3. 在 `任务栏` 勾选需要完成的任务，点击 `开始任务`，请确保APP已登录再开始任务
 
 **如果是第一次运行，请先手动点开各个板块，确保APP不会弹出新手引导**
 
 > **注意**: 执行 `每日答题` 任务时，**请留意系统通知**
 > 
 > 当出现自动答题失败或弹出验证码时，会要求**人工接管**
-> 
+
 ## 声明
 
 基于本项目使用的 [MaaFramework](https://pypi.org/project/MaaFw/) 和 [ultralytics](https://github.com/ultralytics/ultralytics) (YOLO模型) ，本项目采用 [AGPLv3协议](https://github.com/ravizhan/MaaXuexi/blob/main/LICENSE) 开源
