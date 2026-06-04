@@ -4,8 +4,9 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
 jobs:
-  npm-build:
+  vite-build:
     runs-on: ubuntu-latest
     outputs:
       cache-key: ${{ steps.Store-Cache-Key.outputs.cache-key }}
@@ -14,25 +15,34 @@ jobs:
         working-directory: ./front
     steps:
       - name: Check-out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
         with:
-          node-version: "22"
+          version: 10
+          run_install: false
+          package_json_file: 'front/package.json'
 
-      - name: Install Dependencies
-        run: npm install
+      - name: Use Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+          cache-dependency-path: 'front/pnpm-lock.yaml'
 
-      - name: Build Executable
-        run: npm run build
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Frontend
+        run: pnpm run build
 
       - name: Store Cache Key
         id: Store-Cache-Key
         run: echo "cache-key=frontpage-dist-${{ hashFiles('page/**') }}" >> "$GITHUB_OUTPUT"
 
       - name: Cache
-        uses: actions/cache@v4.2.1
+        uses: actions/cache@v5.0.3
         with:
           path: page
           key: ${{ steps.Store-Cache-Key.outputs.cache-key }}
@@ -45,32 +55,38 @@ jobs:
       matrix:
         os: [ macos-latest, ubuntu-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
-    needs: npm-build
+    needs: vite-build
 
     steps:
       - name: Check-out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Restore cached frontend artifacts
-        uses: actions/cache@v4.2.1
+        uses: actions/cache@v5.0.3
         with:
           path: page
-          key: ${{ needs.npm-build.outputs.cache-key }}
+          key: ${{ needs.vite-build.outputs.cache-key }}
           enableCrossOsArchive: true
           fail-on-cache-miss: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7.5.0
         with:
           enable-cache: true
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6.2.0
         with:
           python-version-file: "pyproject.toml"
 
       - name: Install Dependencies
         run: uv sync --dev
+
+      - name: Setup Go
+        uses: actions/setup-go@v6.3.0
+        with:
+          go-version-file: 'updater/go.mod'
+          cache-dependency-path: "updater/go.sum"
 
       - name: Build Executable
         run: uv run python -m nuitka --standalone --windows-console-mode=force --assume-yes-for-downloads --user-package-configuration-file=nuitka-package.config.yml --remove-output --lto=yes --output-dir=build -o MaaXuexi webui.py
@@ -100,11 +116,6 @@ jobs:
           string: ${{ matrix.os }}
           split-by: '-'
 
-      - name: Install Go
-        uses: actions/setup-go@v4
-        with:
-          go-version-file: "updater/go.mod"
-
       - name: Build Updater Windows
         if: ${{ matrix.os == 'windows-latest' }}
         working-directory: ./updater
@@ -116,19 +127,10 @@ jobs:
         run: go build -ldflags "-s -w" -o ../build/webui.dist/Updater
 
       - name: Compress Build
-        run: 7z a -t7z -mx=9 -mmt -ms -r MaaXuexi-${{ steps.split.outputs._0 }}-${{ github.ref_name }}.7z "./build/webui.dist/*"
-
-      - name: Upload Artifacts To Cloudflare
-        uses: magicwallet/r2-upload@main
-        with:
-          endpoint: ${{ secrets.R2_ENDPOINT }}
-          access_key_id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          secret_access_key: ${{ secrets.R2_ACCESS_SECRET_KEY }}
-          bucket: maaxuexi
-          file: ./MaaXuexi-${{ steps.split.outputs._0 }}-${{ github.ref_name }}.7z
+        run: 7z a -t7z -mx=9 -myx=9 -mmt -ms=e -mqs=on -mf=BCJ2 -r MaaXuexi-${{ steps.split.outputs._0 }}-${{ github.ref_name }}.7z "./build/webui.dist/*"
 
       - name: Release
-        uses: ncipollo/release-action@v1.16.0
+        uses: ncipollo/release-action@v1.20.0
         with:
           draft: true
           allowUpdates: true
