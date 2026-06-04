@@ -167,4 +167,3 @@ debug/
 node_modules/
 page/
 config/config.json
-package-lock.json
