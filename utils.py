@@ -20,10 +20,15 @@ from maa.toolkit import Toolkit
 
 
 class AIResolver:
-    def __init__(self, api_key):
+    def __init__(
+            self,
+            api_key,
+            model,
+    ):
         self.session = Client()
         self.session.headers = {"Authorization": f"Bearer {api_key}"}
         self.url = "https://api.siliconflow.cn/v1/chat/completions"
+        self.model = model
 
     @staticmethod
     def image_encode(img: np.ndarray) -> str:
@@ -49,7 +54,7 @@ class AIResolver:
 
     def resolve_choice(self, imgs: list[np.ndarray]) -> list[str] | None:
         data = {
-            "model": "Pro/Qwen/Qwen2.5-VL-7B-Instruct",
+            "model": self.model,
             "messages": [
                 {
                     "role": "system",
@@ -90,7 +95,7 @@ class AIResolver:
 
     def resolve_blank(self, imgs: list[np.ndarray], answer: bool, blank_num: int) -> str | None:
         data = {
-            "model": "Pro/Qwen/Qwen2.5-VL-7B-Instruct",
+            "model": self.model,
             "messages": [
                 {
                     "role": "system",
@@ -113,17 +118,17 @@ class AIResolver:
         }
         if not answer:
             data["messages"][0]["content"] = f"能力与角色:你是一位答题助手\n背景信息:你会得到一张包含填空题的图片\n指令:你需要阅读该图片中的问题，认真理解题目和前后文，其中答案为{blank_num}个字符，思考后作出回答，确保填入答案后的全文逻辑正确，语义正确\n输出风格:你无需给出推理过程，也无需给出任何解释。你只需要回答空缺处应当填的内容，填充字数应当为{blank_num}"
-            data["model"] = "Qwen/Qwen2.5-VL-32B-Instruct"
+            data["model"] = self.model
         response = self.session.post(self.url, json=data)
         try:
             if response.status_code == 200:
                 result = response.json()
-                answer = result["choices"][0]["message"]["content"]
+                result = result["choices"][0]["message"]["content"]
             else:
-                answer = None
+                result = None
         except:
-            answer = None
-        return answer
+            result = None
+        return result
 
 
 resource = Resource()
@@ -132,20 +137,38 @@ resource.post_bundle("./resource").wait()
 
 
 class MaaWorker:
-    def __init__(self, queue: SimpleQueue, api_key):
+    def __init__(
+            self,
+            queue: SimpleQueue,
+            api_key,
+            model: str,
+    ):
         user_path = "./"
         Toolkit.init_option(user_path)
 
         self.queue = queue
         self.tasker = Tasker()
         self.connected = False
-        self.ai_resolver = AIResolver(api_key=api_key)
+        self.api_key = api_key
+        self.ai_resolver = AIResolver(
+            api_key=api_key,
+            model=model,
+        )
         self.stop_flag = False
         self.pause_flag = False
         self.send_log("MAA初始化成功")
 
+    def update_ai_models(
+            self,
+            model: str | None = None,
+    ):
+        self.ai_resolver = AIResolver(
+            api_key=self.api_key,
+            model=model or self.ai_resolver.model,
+        )
+
     def send_log(self, msg):
-        self.queue.put(f"{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())} {msg}")
+        self.queue.put(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} {msg}")
         time.sleep(0.05)
 
     def pause(self):

@@ -144,6 +144,11 @@
     "expected": "[\\u4e00-\\u9fa5]+",
     "only_rec": true
   },
+  "文本框计数": {
+    "recognition": "TemplateMatch",
+    "template": "../image/文本框.png",
+    "action": "DoNothing"
+  },
   "文本框点击": {
     "recognition": "TemplateMatch",
     "template": "../image/文本框.png",

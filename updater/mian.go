@@ -42,7 +42,7 @@ func GenerateMetadata(dictionary string) (map[string]interface{}, error) {
 			if relativePath == "" {
 				return nil
 			}
-			if strings.HasPrefix(relativePath, "config") || strings.HasPrefix(relativePath, "debug") {
+			if strings.HasPrefix(relativePath, "config") || strings.HasPrefix(relativePath, "debug") || strings.HasPrefix(relativePath, "Updater") {
 				return nil
 			}
 			parts := strings.Split(relativePath, string(filepath.Separator))
