@@ -2,7 +2,7 @@
 name = "MaaXuexi"
 version = "1.5.11"
 description = "基于全新架构的 学习强国 自动化助手。图像技术 + 模拟控制，解放双手！由 MaaFramework 强力驱动！"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.135.3",
     "httpx>=0.28.1",
@@ -17,5 +17,5 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
 [dependency-groups]
 dev = [
-    "nuitka>=2.8.3",
+    "nuitka[all]>=4.1.0",
 ]
