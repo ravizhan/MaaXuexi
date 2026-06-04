@@ -16,9 +16,7 @@ from utils import MaaWorker
 
 class ConfigModel(BaseModel):
     api_key: str
-    choice_model: str | None = None
-    blank_model: str | None = None
-    blank_large_model: str | None = None
+    model: str = "Qwen/Qwen3.6-35B-A3B"
 
 class DeviceModel(BaseModel):
     name: str
@@ -61,9 +59,7 @@ def get_settings():
         app_state.worker = MaaWorker(
             app_state.message_conn,
             api_key=config["api_key"],
-            choice_model=config.get("choice_model"),
-            blank_model=config.get("blank_model"),
-            blank_large_model=config.get("blank_large_model")
+            model=config["model"],
         )
     return config
 
@@ -75,16 +71,11 @@ def post_settings(config: ConfigModel):
         app_state.worker = MaaWorker(
             app_state.message_conn,
             api_key=config.api_key,
-            choice_model=config.choice_model,
-            blank_model=config.blank_model,
-            blank_large_model=config.blank_large_model
+            model=config.model,
         )
     else:
-        # 如果worker已存在，更新其模型配置
         app_state.worker.update_ai_models(
-            choice_model=config.choice_model,
-            blank_model=config.blank_model,
-            blank_large_model=config.blank_large_model
+            model=config.model
         )
     return {"status": "success"}
 
