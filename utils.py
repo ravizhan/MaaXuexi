@@ -389,9 +389,12 @@ class MaaWorker:
         learning_score_result: TaskDetail = self.tasker.post_task("学习积分").wait().get()
         if not learning_score_result.nodes:
             self.send_log("未找到学习积分按钮")
-        box = learning_score_result.nodes[0].recognition.best_result.box
-        self.tasker.controller.post_click(box[0] + randint(10, 30), box[1] + randint(10, 30))
-        self.tasker.post_task("积分").wait()
+            self.tasker.post_task("返回2").wait()
+            time.sleep(1)
+            self.tasker.post_task("积分").wait()
+        else:
+            box = learning_score_result.nodes[0].recognition.best_result.box
+            self.tasker.controller.post_click(box[0] + randint(10, 30), box[1] + randint(10, 30))
         # 等待界面加载完毕
         time.sleep(10)
         load_result: TaskDetail = self.tasker.post_task("加载失败").wait().get()
