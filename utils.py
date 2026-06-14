@@ -348,6 +348,8 @@ class MaaWorker:
         mask = np.all((roi >= lower) & (roi <= upper), axis=2)
         count = np.count_nonzero(mask)
         unread = count > 80
+        self.send_log(f"[颜色检测] 黑色像素={count}, 阈值=80, 判定={'未读' if unread else '已读'}")
+        return unread
         print(f"[颜色检测] 黑色像素={count}, 阈值=80, 判定={'未读' if unread else '已读'}")
         return unread
 
