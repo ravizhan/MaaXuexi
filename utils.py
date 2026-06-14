@@ -1,4 +1,4 @@
-import json
+﻿import json
 import time
 import traceback
 from base64 import b64encode
@@ -280,9 +280,11 @@ class MaaWorker:
         self.send_log("所有任务完成")
         time.sleep(0.5)
 
+
     def read_article(self):
+
         self.send_log("开始任务：选读文章")
-        finished_article = []
+        read_count = 0
         reading_time = 0
         self.send_log("进入板块 综合")
         self.tasker.post_task("综合").wait()
@@ -307,35 +309,52 @@ class MaaWorker:
             for box in boxes:
                 img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
                 article_list.append(img)
+
             for i in range(len(box_class)):
+
                 if self.stop_flag:
+
                     return
-                Image.fromarray(article_list[i][:, :, ::-1]).save("current.jpg", "JPEG")
-                if all(self.similarity_match("current.jpg", img2) for img2 in finished_article):
-                    self.send_log(f"read_{len(finished_article)}")
-                    Image.fromarray(article_list[i][:, :, ::-1]).save(f"read_{len(finished_article)}.jpg", "JPEG")
-                    time.sleep(0.5)
-                    self.tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
-                    time.sleep(3)
-                    for _ in range(5):
-                        if self.stop_flag:
-                            return
-                        self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
-                                                          randint(300, 400), randint(1000, 1500)).wait()
-                        t = randint(8, 10)
-                        time.sleep(t)
-                        reading_time += t
-                    time.sleep(1)
-                    self.tasker.post_task("返回").wait()
-                    time.sleep(randint(3, 5))
-                    finished_article.append(f"read_{len(finished_article)}.jpg")
+                if not self._has_unread_text(article_list[i]):
+                    continue
+                read_count += 1
+                self.send_log(f"正在阅读第{read_count}篇文章")
+                time.sleep(0.5)
+                self.tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
+                time.sleep(3)
+                for _ in range(5):
+                    if self.stop_flag:
+                        return
+                    self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
+                                                      randint(300, 400), randint(1000, 1500)).wait()
+                    t = randint(8, 10)
+                    time.sleep(t)
+                    reading_time += t
+                time.sleep(1)
+                self.tasker.post_task("返回").wait()
+                time.sleep(randint(3, 5))
             self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
                                               randint(300, 400), randint(1000, 1500)).wait()
         self.send_log("选读文章任务完成")
 
+
+    def _has_unread_text(self, img: np.ndarray) -> bool:
+        """检测文章卡片左上角 50%x50% 区域是否存在未读文章的黑色标题文字"""
+        h, w = img.shape[:2]
+        roi = img[:h // 2, :w // 2]
+        # rgb(45, 51, 56) -> bgr(56, 51, 45)，容差 +-15
+        lower = np.array([41, 36, 30], dtype=np.uint8)
+        upper = np.array([71, 66, 60], dtype=np.uint8)
+        mask = np.all((roi >= lower) & (roi <= upper), axis=2)
+        count = np.count_nonzero(mask)
+        unread = count > 80
+        print(f"[颜色检测] 黑色像素={count}, 阈值=80, 判定={'未读' if unread else '已读'}")
+        return unread
+
+
     def watch_video(self):
         self.send_log("开始任务：视听学习")
-        finished_video = []
+        watch_count = 0
         waiting_time = 0
         self.tasker.post_task("电视台").wait()
         time.sleep(randint(3, 5))
@@ -358,24 +377,24 @@ class MaaWorker:
             for box in boxes:
                 img = image[box[1]:box[1] + box[3], box[0]:box[0] + box[2]]
                 video_list.append(img)
+
             for i in range(len(box_class)):
+
                 if self.stop_flag:
+
                     return
-                Image.fromarray(video_list[i][:, :, ::-1]).save("current.jpg", "JPEG")
+                if not self._has_unread_text(video_list[i]):
+                    continue
+                watch_count += 1
+                self.send_log(f"正在播放第{watch_count}个视频")
                 time.sleep(0.5)
-                if all(self.similarity_match("current.jpg", img2) for img2 in finished_video):
-                    if self.stop_flag:
-                        return
-                    self.send_log(f"video_{len(finished_video)}")
-                    Image.fromarray(video_list[i][:, :, ::-1]).save(f"video_{len(video_list)}.jpg", "JPEG")
-                    self.tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
-                    time.sleep(3)
-                    t = randint(50, 70)
-                    time.sleep(t)
-                    waiting_time += t
-                    self.tasker.post_task("返回2").wait()
-                    time.sleep(randint(3, 5))
-                    finished_video.append(f"video_{len(video_list)}.jpg")
+                self.tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
+                time.sleep(3)
+                t = randint(50, 70)
+                time.sleep(t)
+                waiting_time += t
+                self.tasker.post_task("返回2").wait()
+                time.sleep(randint(3, 5))
             self.tasker.controller.post_swipe(randint(200, 300), randint(900, 1000), randint(500, 600),
                                               randint(300, 400), randint(1000, 1500)).wait()
         self.send_log("视听学习任务完成")
