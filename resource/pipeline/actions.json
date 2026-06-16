@@ -20,7 +20,7 @@
   "返回2": {
     "recognition": "TemplateMatch",
     "template": "../image/返回2.png",
-    "roi": [0,30,65,70],
+    "roi": [0,30,100,100],
     "action": "Click",
     "green_mask": true
   },
