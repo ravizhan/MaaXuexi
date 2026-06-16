@@ -237,17 +237,6 @@ class MaaWorker:
             labels.append(detail["label"])
         return list(boxes), list(labels)
 
-    def similarity_match(self, img1_path: str, img2_path: str) -> bool:
-        pipeline = {
-            "similarity": {
-                "recognition": "custom",
-                "custom_recognition": "SimilarityReco",
-                "custom_recognition_param": {"origin": img1_path, "pic": "../../" + img2_path}
-            }
-        }
-        result: TaskDetail = self.tasker.post_task("similarity", pipeline).wait().get()
-        return result.nodes[0].recognition.best_result.detail == "failed"
-
     def task(self, tasks):
         self.stop_flag = False
         self.send_log("任务开始")
@@ -282,7 +271,6 @@ class MaaWorker:
 
 
     def read_article(self):
-
         self.send_log("开始任务：选读文章")
         read_count = 0
         reading_time = 0
@@ -350,8 +338,6 @@ class MaaWorker:
         unread = count > 80
         self.send_log(f"[颜色检测] 黑色像素={count}, 阈值=80, 判定={'未读' if unread else '已读'}")
         return unread
-        print(f"[颜色检测] 黑色像素={count}, 阈值=80, 判定={'未读' if unread else '已读'}")
-        return unread
 
 
     def watch_video(self):
@@ -381,9 +367,7 @@ class MaaWorker:
                 video_list.append(img)
 
             for i in range(len(box_class)):
-
                 if self.stop_flag:
-
                     return
                 if not self._has_unread_text(video_list[i]):
                     continue
@@ -548,36 +532,3 @@ class MaaWorker:
     def funny_answer(self):
         self.send_log("开始任务：趣味答题")
         pass
-
-
-@resource.custom_recognition("SimilarityReco")
-class SimilarityReco(CustomRecognition):
-    def analyze(
-            self,
-            context,
-            argv: CustomRecognition.AnalyzeArg,
-    ) -> CustomRecognition.AnalyzeResult:
-        img1 = json.loads(argv.custom_recognition_param)["origin"]
-        img1 = np.asarray(Image.open(img1))
-        img2 = json.loads(argv.custom_recognition_param)["pic"]
-        reco_detail = context.run_recognition(
-            "test_template",
-            img1,
-            {
-                "test_template":
-                    {
-                        "recognition": "FeatureMatch",
-                        "template": img2,
-                        "count": 200,
-                        "pre_delay": 0,
-                        "post_delay": 0
-                    }
-            },
-        )
-        if reco_detail is None:
-            return CustomRecognition.AnalyzeResult(
-                box=(0, 0, 0, 0), detail="failed"
-            )
-        return CustomRecognition.AnalyzeResult(
-            box=(0, 0, 0, 0), detail="success"
-        )
