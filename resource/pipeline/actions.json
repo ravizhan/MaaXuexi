@@ -27,7 +27,7 @@
   "积分": {
     "recognition": "TemplateMatch",
     "template": "../image/积分.png",
-    "roi" : [520,48,188,51],
+    "roi" : [460, 50, 120, 45],
     "target_offset": [20,5,0,0],
     "action": "Click"
   },
