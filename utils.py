@@ -10,7 +10,7 @@ import numpy as np
 import plyer
 from PIL import Image
 from PIL import ImageFilter
-from httpx import Client
+from httpx import Client, Timeout
 from maa.controller import AdbController
 from maa.custom_recognition import CustomRecognition
 from maa.define import TaskDetail
@@ -25,7 +25,7 @@ class AIResolver:
             api_key,
             model,
     ):
-        self.session = Client()
+        self.session = Client(timeout=Timeout(60.0))
         self.session.headers = {"Authorization": f"Bearer {api_key}"}
         self.url = "https://api.siliconflow.cn/v1/chat/completions"
         self.model = model
@@ -76,20 +76,24 @@ class AIResolver:
             "temperature": 0.2
         }
         response = self.session.post(self.url, json=data)
+        print(f"[AI] resolve_choice status={response.status_code}")
         try:
             if response.status_code == 200:
                 result = response.json()
-                answer = list(result["choices"][0]["message"]["content"])
+                raw = result["choices"][0]["message"]["content"]
+                print(f"[AI] resolve_choice raw=\"{raw}\"")
+                answer = list(raw)
                 for i in answer.copy():
                     if i not in ['A', 'B', 'C', 'D', 'E']:
                         answer.remove(i)
                 if len(answer) == 0:
                     raise ValueError("Invalid answer")
+                print(f"[AI] resolve_choice parsed={answer}")
             else:
-                print(response.json())
+                print(f"[AI] resolve_choice error: {response.text}")
                 answer = None
-        except:
-            print(response.json())
+        except Exception as e:
+            print(f"[AI] resolve_choice exception: {e}, body={response.text}")
             answer = None
         return answer
 
@@ -120,13 +124,18 @@ class AIResolver:
             data["messages"][0]["content"] = f"能力与角色:你是一位答题助手\n背景信息:你会得到一张包含填空题的图片\n指令:你需要阅读该图片中的问题，认真理解题目和前后文，其中答案为{blank_num}个字符，思考后作出回答，确保填入答案后的全文逻辑正确，语义正确\n输出风格:你无需给出推理过程，也无需给出任何解释。你只需要回答空缺处应当填的内容，填充字数应当为{blank_num}"
             data["model"] = self.model
         response = self.session.post(self.url, json=data)
+        print(f"[AI] resolve_blank status={response.status_code}")
         try:
             if response.status_code == 200:
                 result = response.json()
-                result = result["choices"][0]["message"]["content"]
+                raw = result["choices"][0]["message"]["content"]
+                print(f"[AI] resolve_blank raw=\"{raw}\"")
+                result = raw
             else:
+                print(f"[AI] resolve_blank error: {response.text}")
                 result = None
-        except:
+        except Exception as e:
+            print(f"[AI] resolve_blank exception: {e}, body={response.text}")
             result = None
         return result
 
@@ -154,13 +163,18 @@ class AIResolver:
             "temperature": 0.2
         }
         response = self.session.post(self.url, json=data)
+        print(f"[AI] resolve_click_blank status={response.status_code}")
         try:
             if response.status_code == 200:
                 result = response.json()
-                result = result["choices"][0]["message"]["content"]
+                raw = result["choices"][0]["message"]["content"]
+                print(f"[AI] resolve_click_blank raw=\"{raw}\"")
+                result = raw
             else:
+                print(f"[AI] resolve_click_blank error: {response.text}")
                 result = None
-        except:
+        except Exception as e:
+            print(f"[AI] resolve_click_blank exception: {e}, body={response.text}")
             result = None
         return result
 
@@ -464,15 +478,15 @@ class MaaWorker:
         time.sleep(1.5 + randint(0, 500) / 1000)
         q_name = ["第一题", "第二题", "第三题", "第四题", "第五题"][question_index]
         current_q = self.tasker.post_task(q_name).wait().get()
-        if not current_q.nodes:
+        if current_q.nodes:
             self.send_log(f"[正误检测] 检测到 {q_name} 仍在显示，判定为答错")
             return False
         next_btn = self.tasker.post_task("下一题检测").wait().get()
-        if not next_btn.nodes:
+        if next_btn.nodes:
             self.send_log(f"[正误检测] 检测到下一题按钮，判定为答错")
             return False
         analysis = self.tasker.post_task("答案解析").wait().get()
-        if not analysis.nodes:
+        if analysis.nodes:
             self.send_log(f"[正误检测] 检测到答案解析，判定为答错")
             return False
         self.send_log(f"[正误检测] 第{question_index + 1}题答对")
@@ -504,7 +518,7 @@ class MaaWorker:
                 return
 
             first_q = self.tasker.post_task("第一题").wait().get()
-            if first_q.nodes:
+            if not first_q.nodes:
                 self.send_log("未找到第一题，答题页面异常")
                 plyer.notification.notify(
                     title="MaaXuexi",
@@ -524,22 +538,22 @@ class MaaWorker:
                 proceed_next = False
 
                 single_result = self.tasker.post_task("单选题").wait().get()
-                if not single_result.nodes:
+                if single_result.nodes:
                     self.send_log(f"第{i + 1}题 单选题")
                     proceed_next = self._handle_single_choice(i)
                 else:
                     multi_result = self.tasker.post_task("多选题").wait().get()
-                    if not multi_result.nodes:
+                    if multi_result.nodes:
                         self.send_log(f"第{i + 1}题 多选题")
                         proceed_next = self._handle_multi_choice(i)
                     else:
                         click_blank_result = self.tasker.post_task("点选填空题").wait().get()
-                        if not click_blank_result.nodes:
+                        if click_blank_result.nodes:
                             self.send_log(f"第{i + 1}题 点选填空题")
                             proceed_next = self._handle_click_blank(i)
                         else:
                             fill_result = self.tasker.post_task("填空题").wait().get()
-                            if not fill_result.nodes:
+                            if fill_result.nodes:
                                 self.send_log(f"第{i + 1}题 填空题")
                                 proceed_next = self._handle_fill_blank(i)
                             else:

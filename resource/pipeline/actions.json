@@ -64,8 +64,7 @@
     "roi" : [0,182,720,75],
     "action": "DoNothing",
     "threshold": 0.9,
-    "timeout": 1100,
-    "inverse": true
+    "timeout": 1100
   },
   "单选题": {
     "recognition": "TemplateMatch",
@@ -73,8 +72,7 @@
     "roi": [0,182,720,75],
     "action": "DoNothing",
     "threshold": 0.9,
-    "timeout": 1100,
-    "inverse": true
+    "timeout": 1100
   },
   "多选题": {
     "recognition": "TemplateMatch",
@@ -82,8 +80,7 @@
     "roi": [0,182,720,75],
     "action": "DoNothing",
     "threshold": 0.9,
-    "timeout": 1100,
-    "inverse": true
+    "timeout": 1100
   },
   "点选填空题": {
     "recognition": "TemplateMatch",
@@ -91,8 +88,7 @@
     "roi": [0,182,720,75],
     "action": "DoNothing",
     "threshold": 0.9,
-    "timeout": 1100,
-    "inverse": true
+    "timeout": 1100
   },
   "选A": {
     "recognition": "TemplateMatch",
@@ -193,64 +189,53 @@
   "第一题": {
     "recognition": "TemplateMatch",
     "template": "../image/第一题.png",
-    "roi": [0, 50, 720, 200],
     "action": "DoNothing",
-    "threshold": 0.9,
-    "timeout": 500,
-    "inverse": true
+    "threshold": 0.8,
+    "roi":[500, 150, 720, 280],
+    "timeout": 500
   },
   "第二题": {
     "recognition": "TemplateMatch",
     "template": "../image/第二题.png",
-    "roi": [0, 50, 720, 200],
     "action": "DoNothing",
-    "threshold": 0.9,
-    "timeout": 500,
-    "inverse": true
+    "threshold": 0.8,
+    "timeout": 500
   },
   "第三题": {
     "recognition": "TemplateMatch",
     "template": "../image/第三题.png",
-    "roi": [0, 50, 720, 200],
     "action": "DoNothing",
-    "threshold": 0.9,
-    "timeout": 500,
-    "inverse": true
+    "threshold": 0.8,
+    "timeout": 500
   },
   "第四题": {
     "recognition": "TemplateMatch",
     "template": "../image/第四题.png",
-    "roi": [0, 50, 720, 200],
     "action": "DoNothing",
-    "threshold": 0.9,
-    "timeout": 500,
-    "inverse": true
+    "threshold": 0.8,
+    "timeout": 500
   },
   "第五题": {
     "recognition": "TemplateMatch",
     "template": "../image/第五题.png",
-    "roi": [0, 50, 720, 200],
     "action": "DoNothing",
-    "threshold": 0.9,
-    "timeout": 500,
-    "inverse": true
+    "threshold": 0.8,
+    "timeout": 500
   },
   "答案解析": {
     "recognition": "TemplateMatch",
     "template": "../image/答案解析.png",
     "action": "DoNothing",
-    "threshold": 0.9,
-    "timeout": 500,
-    "inverse": true
+    "threshold": 0.89,
+    "timeout": 500
   },
   "下一题检测": {
     "recognition": "TemplateMatch",
-    "template": "../image/下一题.png",
+    "template": "../image/答错的下一题.png",
     "roi": [552, 44, 131, 61],
     "action": "DoNothing",
     "threshold": 0.9,
-    "timeout": 500,
-    "inverse": true
+    "timeout": 500
   },
   "放弃答题": {
     "recognition": "TemplateMatch",
