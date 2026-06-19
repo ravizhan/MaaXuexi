@@ -5,6 +5,12 @@
     "roi": [24,47,34,54],
     "action": "Click"
   },
+  "返回3": {
+    "recognition": "TemplateMatch",
+    "template": "../image/返回.png",
+    "roi": [40,40,120,100],
+    "action": "Click"
+  },
   "综合": {
     "recognition": "TemplateMatch",
     "template": "../image/综合.png",

@@ -25,7 +25,7 @@ class AIResolver:
             api_key,
             model,
     ):
-        self.session = Client(timeout=Timeout(60.0))
+        self.session = Client(timeout=Timeout(120.0))
         self.session.headers = {"Authorization": f"Bearer {api_key}"}
         self.url = "https://api.siliconflow.cn/v1/chat/completions"
         self.model = model
@@ -34,18 +34,21 @@ class AIResolver:
     def image_encode(img: np.ndarray) -> str:
         buffered = BytesIO()
         im = Image.fromarray(img)
-        new_size = list(map(lambda x: round(x * 0.5), list(im.size)))
-        im = im.resize(new_size, Image.Resampling.LANCZOS)
         im = im.filter(ImageFilter.SHARPEN)
         im.save(buffered, format="JPEG")
         encoded_image = b64encode(buffered.getvalue()).decode()
         return encoded_image
 
     @staticmethod
-    def image_combine(imgs: list[np.ndarray]) -> np.ndarray:
-        # 创建一个新的空白图片
-        new_img = np.zeros((1280, len(imgs) * 720, 3), dtype=np.uint8)
-        # 将每张图片粘贴到新图片上
+    def image_combine(imgs: list[np.ndarray], pre_scale: float = 1.0) -> np.ndarray:
+        if pre_scale != 1.0:
+            imgs = [np.array(Image.fromarray(img).resize(
+                (round(img.shape[1] * pre_scale), round(img.shape[0] * pre_scale)),
+                Image.Resampling.LANCZOS
+            )) for img in imgs]
+        max_h = max(img.shape[0] for img in imgs)
+        total_w = sum(img.shape[1] for img in imgs)
+        new_img = np.zeros((max_h, total_w, 3), dtype=np.uint8)
         x_offset = 0
         for img in imgs:
             new_img[:img.shape[0], x_offset:x_offset + img.shape[1]] = img
@@ -68,7 +71,7 @@ class AIResolver:
                     "content": [{
                         "type": "image_url",
                         "image_url": {
-                            "url": "data:image/jpg;base64," + self.image_encode(self.image_combine(imgs))
+                            "url": "data:image/jpg;base64," + self.image_encode(self.image_combine(imgs, 0.5))
                         },
                     }]
                 }
@@ -113,7 +116,7 @@ class AIResolver:
                     "content": [{
                         "type": "image_url",
                         "image_url": {
-                            "url": "data:image/jpg;base64," + self.image_encode(self.image_combine(imgs))
+                            "url": "data:image/jpg;base64," + self.image_encode(self.image_combine(imgs, 0.5))
                         },
                     }]
                 }
@@ -155,7 +158,7 @@ class AIResolver:
                     "content": [{
                         "type": "image_url",
                         "image_url": {
-                            "url": "data:image/jpg;base64," + self.image_encode(self.image_combine(imgs))
+                            "url": "data:image/jpg;base64," + self.image_encode(self.image_combine(imgs, 0.5))
                         },
                     }]
                 }
@@ -460,12 +463,12 @@ class MaaWorker:
             time.sleep(10)
             load_result: TaskDetail = self.tasker.post_task("加载失败").wait().get()
         self.send_log("加载成功")
-        self._click_daily_answer_button()
-
-    def _click_daily_answer_button(self):
         self.tasker.controller.post_swipe(randint(200, 300), randint(1000, 1100), randint(500, 600), randint(100, 200),
                                           randint(1000, 1500)).wait()
         time.sleep(randint(1, 2))
+        self._click_daily_answer_button()
+
+    def _click_daily_answer_button(self):
         result: TaskDetail = self.tasker.post_task("每日答题").wait().get()
         box = result.nodes[0].recognition.best_result.box
         self.tasker.controller.post_click(box[0] + randint(10, 30), box[1] + randint(10, 30))
@@ -493,7 +496,7 @@ class MaaWorker:
         return True
 
     def _handle_wrong_answer(self):
-        self.tasker.post_task("返回").wait()
+        self.tasker.post_task("返回3").wait()
         time.sleep(1)
         popup_result: TaskDetail = self.tasker.post_task("放弃答题").wait().get()
         if popup_result.nodes:
@@ -512,6 +515,9 @@ class MaaWorker:
         self._navigate_to_daily_answer()
         if self.stop_flag:
             return
+
+        retry_count = 0
+        max_retries = 1
 
         while True:
             if self.stop_flag:
@@ -586,6 +592,18 @@ class MaaWorker:
             if all_correct:
                 break
 
+            retry_count += 1
+            if retry_count > max_retries:
+                self.send_log("重试次数已达上限，答题失败")
+                plyer.notification.notify(
+                    title="MaaXuexi",
+                    message="重试次数已达上限，答题失败",
+                    app_name="MaaXuexi",
+                    timeout=60
+                )
+                return
+
+            self.send_log(f"第 {retry_count} 次重试")
             self._click_daily_answer_button()
 
         time.sleep(2)
@@ -617,6 +635,27 @@ class MaaWorker:
             self.send_log("发现验证码，请求接管")
             self.pause()
 
+    def _scroll_to_hint(self, max_swipes=2) -> list[np.ndarray]:
+        screenshots = []
+        scroll_px = 700
+        for i in range(max_swipes + 1):
+            shot = self.tasker.controller.post_screencap().wait().get()
+            if i == 0:
+                screenshots.append(shot)
+            else:
+                h = shot.shape[0]
+                screenshots.append(shot[max(0, h - scroll_px):, :])
+            result = self.tasker.post_task("查看提示").wait().get()
+            if result.nodes:
+                return screenshots
+            if i < max_swipes:
+                self.send_log(f"未找到提示按钮，向下滑动 ({i + 1}/{max_swipes})")
+                self.tasker.controller.post_swipe(randint(300, 400), randint(1000, 1100), randint(300, 400),
+                                                  randint(300, 400), randint(300, 500)).wait()
+                time.sleep(0.5)
+        self.send_log("多次滑动仍未找到提示按钮，直接提交AI")
+        return screenshots
+
     def _handle_fill_blank(self, index) -> bool:
         if self.stop_flag:
             return False
@@ -637,11 +676,10 @@ class MaaWorker:
                 return False
         else:
             self.send_log("查看提示")
+            self._scroll_to_hint()
             click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
-            if not click_result.nodes:
-                self.tasker.controller.post_swipe(randint(590, 600), randint(1200, 1210), randint(620, 630),
-                                                  randint(1000, 1010), randint(300, 400)).wait()
-            time.sleep(1)
+            if click_result.nodes:
+                time.sleep(1)
             find_result: TaskDetail = self.tasker.post_task("find_red").wait().get()
             red_border = find_result.nodes[0].recognition.best_result.box
             rec_result: TaskDetail = self.tasker.post_task("rec_answer",
@@ -659,16 +697,11 @@ class MaaWorker:
     def _handle_single_choice(self, index) -> bool:
         if self.stop_flag:
             return False
-        img_list = []
-        img_list.append(self.tasker.controller.post_screencap().wait().get())
+        scroll_shots = self._scroll_to_hint()
         click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
-        if not click_result.nodes:
-            self.tasker.controller.post_swipe(randint(590, 600), randint(1200, 1210), randint(620, 630),
-                                              randint(1100, 1110), randint(200, 300)).wait()
-            self.tasker.post_task("查看提示").wait()
-            img_list.append(self.tasker.controller.post_screencap().wait().get())
-        time.sleep(1)
-        img_list.append(self.tasker.controller.post_screencap().wait().get())
+        if click_result.nodes:
+            time.sleep(1)
+        img_list = [scroll_shots[-1], self.tasker.controller.post_screencap().wait().get()]
         self.tasker.post_task("关闭提示").wait()
         time.sleep(1)
         answer = self.ai_resolver.resolve_choice(img_list)
@@ -704,16 +737,14 @@ class MaaWorker:
         if self.stop_flag:
             return False
         self.send_log("查看提示")
+        scroll_shots = self._scroll_to_hint()
         click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
-        if not click_result.nodes:
-            self.tasker.controller.post_swipe(randint(590, 600), randint(1200, 1210), randint(620, 630),
-                                              randint(1000, 1010), randint(300, 400)).wait()
-            self.tasker.post_task("查看提示").wait()
-        time.sleep(1)
-        image = self.tasker.controller.post_screencap().wait().get()
-        answer_text = self.ai_resolver.resolve_click_blank([image])
+        if click_result.nodes:
+            time.sleep(1)
+        img_list = [scroll_shots[-1], self.tasker.controller.post_screencap().wait().get()]
         self.tasker.post_task("关闭提示").wait()
         time.sleep(1)
+        answer_text = self.ai_resolver.resolve_click_blank(img_list)
         if answer_text is None:
             plyer.notification.notify(
                 title="MaaXuexi",
