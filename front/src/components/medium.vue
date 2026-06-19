@@ -23,6 +23,15 @@
               size="large"
               label="每日答题"
           />
+          <div style="display: flex; align-items: center; margin-top: 4px; margin-left: 24px; gap: 6px;">
+            <n-switch v-model:value="tasks.fast_answer" size="small" />
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <span style="font-size: 13px; color: #999; cursor: help;">极速答题 (beta)</span>
+              </template>
+              基于一些题目特征，快速选出答案，可能存在答错风险
+            </n-tooltip>
+          </div>
         </n-list-item>
         <n-list-item>
           <n-checkbox
@@ -53,7 +62,8 @@ const tasks = ref({
   read: false,
   watch: false,
   daily: false,
-  fun: false
+  fun: false,
+  fast_answer: false
 })
 
 function startTask() {
@@ -73,7 +83,7 @@ function startTask() {
   }
   fetch('/api/start', {
     method: 'POST',
-    body: JSON.stringify({"tasklist":task_list}),
+    body: JSON.stringify({"tasklist":task_list, "fast_answer":tasks.value.fast_answer}),
     headers: {
       'Content-Type': 'application/json'
     }

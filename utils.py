@@ -130,6 +130,40 @@ class AIResolver:
             result = None
         return result
 
+    def resolve_click_blank(self, imgs: list[np.ndarray]) -> str | None:
+        data = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": [{
+                        "type": "text",
+                        "text": "能力与角色:你是一位答题助手\n背景信息:你会得到一张左边为点选填空题右边为答案的图片\n指令:你需要仔细阅读图片中的两部分内容，其中答案为红字部分，按照空缺顺序，依次回答每个空缺处应当填写的内容\n输出风格:你无需给出推理过程，也无需给出任何解释。你只需要按顺序回答每个空缺处的内容，用英文逗号分隔\n输出范围:多个答案用英文逗号分隔，如：答案1,答案2,答案3"
+                    }]
+                },
+                {
+                    "role": "user",
+                    "content": [{
+                        "type": "image_url",
+                        "image_url": {
+                            "url": "data:image/jpg;base64," + self.image_encode(self.image_combine(imgs))
+                        },
+                    }]
+                }
+            ],
+            "temperature": 0.2
+        }
+        response = self.session.post(self.url, json=data)
+        try:
+            if response.status_code == 200:
+                result = response.json()
+                result = result["choices"][0]["message"]["content"]
+            else:
+                result = None
+        except:
+            result = None
+        return result
+
 
 resource = Resource()
 resource.set_cpu()
@@ -156,6 +190,7 @@ class MaaWorker:
         )
         self.stop_flag = False
         self.pause_flag = False
+        self.fast_answer = False
         self.send_log("MAA初始化成功")
 
     def update_ai_models(
@@ -237,8 +272,9 @@ class MaaWorker:
             labels.append(detail["label"])
         return list(boxes), list(labels)
 
-    def task(self, tasks):
+    def task(self, tasks, fast_answer=False):
         self.stop_flag = False
+        self.fast_answer = fast_answer
         self.send_log("任务开始")
         try:
             for task in tasks:
@@ -385,9 +421,8 @@ class MaaWorker:
                                               randint(300, 400), randint(1000, 1500)).wait()
         self.send_log("视听学习任务完成")
 
-    def daily_answer(self):
+    def _navigate_to_daily_answer(self):
         self.send_log("开始任务：每日答题")
-        # 积分按钮的识别难度似乎还是太高了，试图通过更大的我的“按钮”，进到界面来点一下学习积分按钮也能进一个界面
         self.tasker.post_task("我的").wait()
         wait_time = 0.5 + randint(0, 500) / 1000
         time.sleep(wait_time)
@@ -400,7 +435,6 @@ class MaaWorker:
         else:
             box = learning_score_result.nodes[0].recognition.best_result.box
             self.tasker.controller.post_click(box[0] + randint(10, 30), box[1] + randint(10, 30))
-        # 等待界面加载完毕
         time.sleep(10)
         load_result: TaskDetail = self.tasker.post_task("加载失败").wait().get()
         while not load_result.nodes:
@@ -412,110 +446,150 @@ class MaaWorker:
             time.sleep(10)
             load_result: TaskDetail = self.tasker.post_task("加载失败").wait().get()
         self.send_log("加载成功")
-        # 滑动到每日答题按钮
+        self._click_daily_answer_button()
+
+    def _click_daily_answer_button(self):
         self.tasker.controller.post_swipe(randint(200, 300), randint(1000, 1100), randint(500, 600), randint(100, 200),
                                           randint(1000, 1500)).wait()
         time.sleep(randint(1, 2))
-        # 点击每日答题按钮
         result: TaskDetail = self.tasker.post_task("每日答题").wait().get()
         box = result.nodes[0].recognition.best_result.box
         self.tasker.controller.post_click(box[0] + randint(10, 30), box[1] + randint(10, 30))
         self.send_log("开始答题")
         if self.stop_flag:
             return
-        # 等待界面加载完毕
         time.sleep(5)
-        # 开始答题
-        for i in range(5):
+
+    def _check_answer_correctness(self, question_index) -> bool:
+        time.sleep(1.5 + randint(0, 500) / 1000)
+        q_name = ["第一题", "第二题", "第三题", "第四题", "第五题"][question_index]
+        current_q = self.tasker.post_task(q_name).wait().get()
+        if not current_q.nodes:
+            self.send_log(f"[正误检测] 检测到 {q_name} 仍在显示，判定为答错")
+            return False
+        next_btn = self.tasker.post_task("下一题检测").wait().get()
+        if not next_btn.nodes:
+            self.send_log(f"[正误检测] 检测到下一题按钮，判定为答错")
+            return False
+        analysis = self.tasker.post_task("答案解析").wait().get()
+        if not analysis.nodes:
+            self.send_log(f"[正误检测] 检测到答案解析，判定为答错")
+            return False
+        self.send_log(f"[正误检测] 第{question_index + 1}题答对")
+        return True
+
+    def _handle_wrong_answer(self):
+        self.tasker.post_task("返回").wait()
+        time.sleep(1)
+        popup_result: TaskDetail = self.tasker.post_task("放弃答题").wait().get()
+        if popup_result.nodes:
+            popup_box = popup_result.nodes[0].recognition.best_result.box
+            exit_result: TaskDetail = self.tasker.post_task("放弃答题退出", {"放弃答题退出": {"roi": list(popup_box)}}).wait().get()
+        else:
+            exit_result: TaskDetail = self.tasker.post_task("放弃答题退出").wait().get()
+        if exit_result.nodes:
+            exit_box = exit_result.nodes[0].recognition.best_result.box
+            cx = exit_box[0] + exit_box[2] // 2
+            cy = exit_box[1] + exit_box[3] // 2
+            self.tasker.controller.post_click(cx, cy).wait()
+        time.sleep(2)
+
+    def daily_answer(self):
+        self._navigate_to_daily_answer()
+        if self.stop_flag:
+            return
+
+        while True:
             if self.stop_flag:
                 return
-            # 判断是不是填空题
-            recog_result: TaskDetail = self.tasker.post_task("填空题").wait().get()  # 单选题和填空题相似度竟然有0.75，离谱
-            if not recog_result.nodes:
-                self.send_log(f"第{i + 1}题 填空题")
-                recog_result: TaskDetail = self.tasker.post_task("填空题视频").wait().get()
-                # 判断有没有视频，有的话调用AI解答
-                if not recog_result.nodes:
-                    self.send_log("发现视频，正在请求AI解答")
-                    # 截图
-                    image = self.tasker.controller.post_screencap().wait().get()
-                    # AI解答
-                    answer = self.ai_resolver.resolve_blank([image], False)
-                    if answer is None:
-                        plyer.notification.notify(
-                            title="MaaXuexi",
-                            message="AI解答失败，请求接管",
-                            app_name="MaaXuexi",
-                            timeout=60
-                        )
-                        self.send_log("AI解答失败, 请求接管")
-                        self.pause()
-                        continue
+
+            first_q = self.tasker.post_task("第一题").wait().get()
+            if first_q.nodes:
+                self.send_log("未找到第一题，答题页面异常")
+                plyer.notification.notify(
+                    title="MaaXuexi",
+                    message="未找到第一题，答题页面异常",
+                    app_name="MaaXuexi",
+                    timeout=60
+                )
+                return
+
+            fast_mode_this_round = self.fast_answer
+            all_correct = True
+
+            for i in range(5):
+                if self.stop_flag:
+                    return
+
+                proceed_next = False
+
+                single_result = self.tasker.post_task("单选题").wait().get()
+                if not single_result.nodes:
+                    self.send_log(f"第{i + 1}题 单选题")
+                    proceed_next = self._handle_single_choice(i)
                 else:
-                    # 正常填空题
-                    self.send_log("查看提示")
-                    click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
-                    if not click_result.nodes:
-                        self.tasker.controller.post_swipe(randint(590, 600), randint(1200, 1210), randint(620, 630),
-                                                          randint(1000, 1010), randint(300, 400)).wait()
-                    time.sleep(1)
-                    find_result: TaskDetail = self.tasker.post_task("find_red").wait().get()
-                    red_border = find_result.nodes[0].recognition.best_result.box
-                    rec_result: TaskDetail = self.tasker.post_task("rec_answer",
-                                                                   {"rec_answer": {"roi": red_border}}).wait().get()
-                    answer = rec_result.nodes[0].recognition.best_result.text
-                    self.tasker.post_task("关闭提示").wait()
-                time.sleep(1)
-                self.send_log(f"正在输入 {answer}")
-                self.tasker.post_task("文本框点击").wait()
+                    multi_result = self.tasker.post_task("多选题").wait().get()
+                    if not multi_result.nodes:
+                        self.send_log(f"第{i + 1}题 多选题")
+                        proceed_next = self._handle_multi_choice(i)
+                    else:
+                        click_blank_result = self.tasker.post_task("点选填空题").wait().get()
+                        if not click_blank_result.nodes:
+                            self.send_log(f"第{i + 1}题 点选填空题")
+                            proceed_next = self._handle_click_blank(i)
+                        else:
+                            fill_result = self.tasker.post_task("填空题").wait().get()
+                            if not fill_result.nodes:
+                                self.send_log(f"第{i + 1}题 填空题")
+                                proceed_next = self._handle_fill_blank(i)
+                            else:
+                                self.send_log(f"第{i + 1}题 无法识别题型，请求接管")
+                                plyer.notification.notify(
+                                    title="MaaXuexi",
+                                    message="无法识别题型，请求接管",
+                                    app_name="MaaXuexi",
+                                    timeout=60
+                                )
+                                self.pause()
+                                return
+
+                if proceed_next:
+                    time.sleep(0.5)
+                    self.tasker.post_task("下一题").wait()
+                    time.sleep(randint(2, 3))
+
+                    if not self._check_answer_correctness(i):
+                        self.send_log("检测到答错，重新答题")
+                        self._handle_wrong_answer()
+
+                        if fast_mode_this_round:
+                            self.fast_answer = False
+                            self.send_log("极速模式已关闭，切换为常规答题")
+
+                        all_correct = False
+                        break
+
+            if all_correct:
+                break
+
+            self._click_daily_answer_button()
+
+        time.sleep(2)
+        recog_result: TaskDetail = self.tasker.post_task("访问异常").wait().get()
+        if not recog_result.nodes:
+            plyer.notification.notify(
+                title="MaaXuexi",
+                message="发现验证码，请求接管",
+                app_name="MaaXuexi",
+                timeout=60
+            )
+            self.send_log("发现验证码，请求接管")
+            self.pause()
+
+            if proceed_next:
                 time.sleep(0.5)
-                self.tasker.controller.post_input_text(answer).wait()
-                self.send_log("输入完成")
-            else:
-                self.send_log(f"第{i + 1}题 选择题")
-                img_list = []
-                # 问题截图
-                img_list.append(self.tasker.controller.post_screencap().wait().get())
-                # 答案截图
-                click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
-                if not click_result.nodes:
-                    self.tasker.controller.post_swipe(randint(590, 600), randint(1200, 1210), randint(620, 630),
-                                                      randint(1100, 1110), randint(200, 300)).wait()
-                    self.tasker.post_task("查看提示").wait()
-                    img_list.append(self.tasker.controller.post_screencap().wait().get())
-                time.sleep(1)
-                img_list.append(self.tasker.controller.post_screencap().wait().get())
-                self.tasker.post_task("关闭提示").wait()
-                time.sleep(1)
-                # AI解答
-                answer = self.ai_resolver.resolve_choice(img_list)
-                if answer is None:
-                    plyer.notification.notify(
-                        title="MaaXuexi",
-                        message="AI解答失败，请求接管",
-                        app_name="MAA",
-                        timeout=60
-                    )
-                    self.send_log("AI解答失败, 请求接管")
-                    self.pause()
-                    continue
-                self.send_log(f"AI解答成功，答案为{''.join(answer)}")
-                for i in answer:
-                    if i == "A":
-                        self.tasker.post_task("选A").wait()
-                    elif i == "B":
-                        self.tasker.post_task("选B").wait()
-                    elif i == "C":
-                        self.tasker.post_task("选C").wait()
-                    elif i == "D":
-                        self.tasker.post_task("选D").wait()
-                    elif i == "E":
-                        self.tasker.post_task("选E").wait()
-                    time.sleep(0.2)
-            time.sleep(0.5)
-            # 下一题
-            self.tasker.post_task("下一题").wait()
-            time.sleep(randint(2, 3))
+                self.tasker.post_task("下一题").wait()
+                time.sleep(randint(2, 3))
         # 结束答题，大概率会弹验证码
         time.sleep(2)
         recog_result: TaskDetail = self.tasker.post_task("访问异常").wait().get()
@@ -528,6 +602,188 @@ class MaaWorker:
             )
             self.send_log("发现验证码，请求接管")
             self.pause()
+
+    def _handle_fill_blank(self, index) -> bool:
+        if self.stop_flag:
+            return False
+        video_result: TaskDetail = self.tasker.post_task("填空题视频").wait().get()
+        if not video_result.nodes:
+            self.send_log("发现视频，正在请求AI解答")
+            image = self.tasker.controller.post_screencap().wait().get()
+            answer = self.ai_resolver.resolve_blank([image], False)
+            if answer is None:
+                plyer.notification.notify(
+                    title="MaaXuexi",
+                    message="AI解答失败，请求接管",
+                    app_name="MaaXuexi",
+                    timeout=60
+                )
+                self.send_log("AI解答失败, 请求接管")
+                self.pause()
+                return False
+        else:
+            self.send_log("查看提示")
+            click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
+            if not click_result.nodes:
+                self.tasker.controller.post_swipe(randint(590, 600), randint(1200, 1210), randint(620, 630),
+                                                  randint(1000, 1010), randint(300, 400)).wait()
+            time.sleep(1)
+            find_result: TaskDetail = self.tasker.post_task("find_red").wait().get()
+            red_border = find_result.nodes[0].recognition.best_result.box
+            rec_result: TaskDetail = self.tasker.post_task("rec_answer",
+                                                            {"rec_answer": {"roi": red_border}}).wait().get()
+            answer = rec_result.nodes[0].recognition.best_result.text
+            self.tasker.post_task("关闭提示").wait()
+        time.sleep(1)
+        self.send_log(f"正在输入 {answer}")
+        self.tasker.post_task("文本框点击").wait()
+        time.sleep(0.5)
+        self.tasker.controller.post_input_text(answer).wait()
+        self.send_log("输入完成")
+        return True
+
+    def _handle_single_choice(self, index) -> bool:
+        if self.stop_flag:
+            return False
+        img_list = []
+        img_list.append(self.tasker.controller.post_screencap().wait().get())
+        click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
+        if not click_result.nodes:
+            self.tasker.controller.post_swipe(randint(590, 600), randint(1200, 1210), randint(620, 630),
+                                              randint(1100, 1110), randint(200, 300)).wait()
+            self.tasker.post_task("查看提示").wait()
+            img_list.append(self.tasker.controller.post_screencap().wait().get())
+        time.sleep(1)
+        img_list.append(self.tasker.controller.post_screencap().wait().get())
+        self.tasker.post_task("关闭提示").wait()
+        time.sleep(1)
+        answer = self.ai_resolver.resolve_choice(img_list)
+        if answer is None:
+            plyer.notification.notify(
+                title="MaaXuexi",
+                message="AI解答失败，请求接管",
+                app_name="MaaXuexi",
+                timeout=60
+            )
+            self.send_log("AI解答失败, 请求接管")
+            self.pause()
+            return False
+        self.send_log(f"AI解答成功，答案为{''.join(answer)}")
+        for choice in answer:
+            if choice == "A":
+                self.tasker.post_task("选A").wait()
+            elif choice == "B":
+                self.tasker.post_task("选B").wait()
+            elif choice == "C":
+                self.tasker.post_task("选C").wait()
+            elif choice == "D":
+                self.tasker.post_task("选D").wait()
+            elif choice == "E":
+                self.tasker.post_task("选E").wait()
+            time.sleep(0.2)
+        return True
+
+    def _handle_multi_choice(self, index) -> bool:
+        return self._handle_single_choice(index)
+
+    def _handle_click_blank(self, index) -> bool:
+        if self.stop_flag:
+            return False
+        self.send_log("查看提示")
+        click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
+        if not click_result.nodes:
+            self.tasker.controller.post_swipe(randint(590, 600), randint(1200, 1210), randint(620, 630),
+                                              randint(1000, 1010), randint(300, 400)).wait()
+            self.tasker.post_task("查看提示").wait()
+        time.sleep(1)
+        image = self.tasker.controller.post_screencap().wait().get()
+        answer_text = self.ai_resolver.resolve_click_blank([image])
+        self.tasker.post_task("关闭提示").wait()
+        time.sleep(1)
+        if answer_text is None:
+            plyer.notification.notify(
+                title="MaaXuexi",
+                message="AI解答失败，请求接管",
+                app_name="MaaXuexi",
+                timeout=60
+            )
+            self.send_log("AI解答失败, 请求接管")
+            self.pause()
+            return False
+        answers = [a.strip() for a in answer_text.replace("，", ",").split(",") if a.strip()]
+        self.send_log(f"AI识别到 {len(answers)} 个答案: {answers}")
+        ocr_result: TaskDetail = self.tasker.post_task("扫描选项").wait().get()
+        if not ocr_result.nodes:
+            self.send_log("未找到选项文本，请求接管")
+            plyer.notification.notify(
+                title="MaaXuexi",
+                message="未找到选项文本，请求接管",
+                app_name="MaaXuexi",
+                timeout=60
+            )
+            self.pause()
+            return False
+        text_positions = {}
+        for node in ocr_result.nodes:
+            text = node.recognition.best_result.text.strip()
+            box = node.recognition.best_result.box
+            if text:
+                text_positions[text] = list(box)
+        self.send_log(f"OCR识别到 {len(text_positions)} 个选项: {list(text_positions.keys())}")
+        for answer in answers:
+            if self.stop_flag:
+                return False
+            target_box = None
+            matched_text = None
+            for text, box in text_positions.items():
+                if answer == text or answer in text or text in answer:
+                    target_box = box
+                    matched_text = text
+                    break
+            if target_box is None:
+                self.send_log(f"未找到选项 \"{answer}\"，请求接管")
+                plyer.notification.notify(
+                    title="MaaXuexi",
+                    message=f"未找到选项 \"{answer}\"，请求接管",
+                    app_name="MaaXuexi",
+                    timeout=60
+                )
+                self.pause()
+                return False
+            cx = target_box[0] + target_box[2] // 2
+            cy = target_box[1] + target_box[3] // 2
+            max_retries = 3
+            selected = False
+            for retry in range(max_retries):
+                img_before = self.tasker.controller.post_screencap().wait().get()
+                color_before = img_before[cy, cx].tolist()
+                print(f"[点选填空题] 点击选项 \"{answer}\" (匹配 \"{matched_text}\") 位置 ({cx}, {cy}), 第{retry + 1}次尝试")
+                self.tasker.controller.post_click(cx, cy).wait()
+                time.sleep(0.5)
+                img_after = self.tasker.controller.post_screencap().wait().get()
+                color_after = img_after[cy, cx].tolist()
+                diff = sum(abs(int(a) - int(b)) for a, b in zip(color_before, color_after))
+                print(f"[点选填空题] 颜色变化: {color_before} -> {color_after}, 差值: {diff}")
+                if diff > 50:
+                    print(f"[点选填空题] 选项 \"{answer}\" 选中成功 (差值: {diff})")
+                    selected = True
+                    break
+                else:
+                    print(f"[点选填空题] 选项 \"{answer}\" 未选中 (差值: {diff}), 重试...")
+            if not selected:
+                self.send_log(f"选项 \"{answer}\" 选中失败，请求接管")
+                plyer.notification.notify(
+                    title="MaaXuexi",
+                    message=f"选项 \"{answer}\" 选中失败，请求接管",
+                    app_name="MaaXuexi",
+                    timeout=60
+                )
+                self.pause()
+                return False
+            if matched_text in text_positions:
+                del text_positions[matched_text]
+            time.sleep(0.3)
+        return True
 
     def funny_answer(self):
         self.send_log("开始任务：趣味答题")

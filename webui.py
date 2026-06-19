@@ -29,6 +29,7 @@ class DeviceModel(BaseModel):
 
 class TaskModel(BaseModel):
     tasklist: list[Literal["选读文章", "视听学习", "每日答题", "趣味答题"]]
+    fast_answer: bool = False
 
 class AppState:
     def __init__(self):
@@ -103,7 +104,7 @@ def start(tasks: TaskModel):
         return {"status": "failed","message":"请先连接设备"}
     app_state.child_process = threading.Thread(
         target=app_state.worker.task,
-        args=(tasks.tasklist,),
+        args=(tasks.tasklist, tasks.fast_answer),
         daemon=True
     )
     app_state.child_process.start()

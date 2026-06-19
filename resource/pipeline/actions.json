@@ -61,7 +61,34 @@
   "填空题": {
     "recognition": "TemplateMatch",
     "template": "../image/填空题.png",
-    "roi" : [43,182,169,75],
+    "roi" : [0,182,720,75],
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 1100,
+    "inverse": true
+  },
+  "单选题": {
+    "recognition": "TemplateMatch",
+    "template": "../image/单选题.png",
+    "roi": [0,182,720,75],
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 1100,
+    "inverse": true
+  },
+  "多选题": {
+    "recognition": "TemplateMatch",
+    "template": "../image/多选题.png",
+    "roi": [0,182,720,75],
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 1100,
+    "inverse": true
+  },
+  "点选填空题": {
+    "recognition": "TemplateMatch",
+    "template": "../image/点选填空题.png",
+    "roi": [0,182,720,75],
     "action": "DoNothing",
     "threshold": 0.9,
     "timeout": 1100,
@@ -144,6 +171,11 @@
     "expected": "[\\u4e00-\\u9fa5]+",
     "only_rec": true
   },
+  "扫描选项": {
+    "recognition": "OCR",
+    "roi": [0, 300, 720, 800],
+    "only_rec": true
+  },
   "文本框计数": {
     "recognition": "TemplateMatch",
     "template": "../image/文本框.png",
@@ -158,6 +190,82 @@
     "recognition": "TemplateMatch",
     "template": "../image/文本框.png",
     "action": "InputText"
+  },
+  "第一题": {
+    "recognition": "TemplateMatch",
+    "template": "../image/第一题.png",
+    "roi": [0, 50, 720, 200],
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 500,
+    "inverse": true
+  },
+  "第二题": {
+    "recognition": "TemplateMatch",
+    "template": "../image/第二题.png",
+    "roi": [0, 50, 720, 200],
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 500,
+    "inverse": true
+  },
+  "第三题": {
+    "recognition": "TemplateMatch",
+    "template": "../image/第三题.png",
+    "roi": [0, 50, 720, 200],
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 500,
+    "inverse": true
+  },
+  "第四题": {
+    "recognition": "TemplateMatch",
+    "template": "../image/第四题.png",
+    "roi": [0, 50, 720, 200],
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 500,
+    "inverse": true
+  },
+  "第五题": {
+    "recognition": "TemplateMatch",
+    "template": "../image/第五题.png",
+    "roi": [0, 50, 720, 200],
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 500,
+    "inverse": true
+  },
+  "答案解析": {
+    "recognition": "TemplateMatch",
+    "template": "../image/答案解析.png",
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 500,
+    "inverse": true
+  },
+  "下一题检测": {
+    "recognition": "TemplateMatch",
+    "template": "../image/下一题.png",
+    "roi": [552, 44, 131, 61],
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 500,
+    "inverse": true
+  },
+  "放弃答题": {
+    "recognition": "TemplateMatch",
+    "template": "../image/放弃答题.png",
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 1100
+  },
+  "放弃答题退出": {
+    "recognition": "TemplateMatch",
+    "template": "../image/放弃答题退出.png",
+    "action": "DoNothing",
+    "threshold": 0.9,
+    "timeout": 1100
   },
   "yolo_detect": {
     "recognition": "NeuralNetworkDetect",
