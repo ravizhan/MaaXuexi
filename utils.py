@@ -150,7 +150,7 @@ class AIResolver:
                     "role": "system",
                     "content": [{
                         "type": "text",
-                        "text": "能力与角色:你是一位答题助手\n背景信息:你会得到一张左边为点选填空题右边为答案的图片\n指令:你需要仔细阅读图片中的两部分内容，其中答案为红字部分，按照空缺顺序，依次回答每个空缺处应当填写的内容\n输出风格:你无需给出推理过程，也无需给出任何解释。你只需要按顺序回答每个空缺处的内容，用英文逗号分隔\n输出范围:多个答案用英文逗号分隔，如：答案1,答案2,答案3"
+                        "text": "能力与角色:你是一位答题助手\n背景信息:你会得到一张左边为点选填空题右边为答案的图片\n指令:你需要仔细阅读图片中的两部分内容，其中答案为红字部分，应该的选择顺序，按照点选顺序点选的文字，使用用英文逗号分隔\n输出风格:你无需给出推理过程，也无需给出任何解释。你只需要按顺序回答点选顺序，用英文逗号分隔"
                     }]
                 },
                 {
@@ -663,6 +663,7 @@ class MaaWorker:
         if not video_result.nodes:
             self.send_log("发现视频，正在请求AI解答")
             image = self.tasker.controller.post_screencap().wait().get()
+            print("[AI] 请求ai答题")
             answer = self.ai_resolver.resolve_blank([image], False)
             if answer is None:
                 plyer.notification.notify(
@@ -704,6 +705,7 @@ class MaaWorker:
         img_list = [scroll_shots[-1], self.tasker.controller.post_screencap().wait().get()]
         self.tasker.post_task("关闭提示").wait()
         time.sleep(1)
+        print("[AI] 请求ai答题")
         answer = self.ai_resolver.resolve_choice(img_list)
         if answer is None:
             plyer.notification.notify(
@@ -744,6 +746,7 @@ class MaaWorker:
         img_list = [scroll_shots[-1], self.tasker.controller.post_screencap().wait().get()]
         self.tasker.post_task("关闭提示").wait()
         time.sleep(1)
+        print("[AI] 请求ai答题")
         answer_text = self.ai_resolver.resolve_click_blank(img_list)
         if answer_text is None:
             plyer.notification.notify(
