@@ -168,6 +168,13 @@
     "lower": [255, 0, 0],
     "upper": [255, 254, 254]
   },
+  "find_hint_red": {
+    "recognition": "ColorMatch",
+    "roi": [0, 300, 720, 700],
+    "lower": [220, 100, 50],
+    "upper": [255, 180, 130],
+    "timeout": 2000
+  },
   "rec_answer": {
     "recognition": "OCR",
     "expected": "[\\u4e00-\\u9fa5]+",

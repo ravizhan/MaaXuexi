@@ -1,4 +1,5 @@
 ﻿import json
+import re
 import time
 import traceback
 from base64 import b64encode
@@ -546,21 +547,29 @@ class MaaWorker:
                 single_result = self.tasker.post_task("单选题").wait().get()
                 if single_result.nodes:
                     self.send_log(f"第{i + 1}题 单选题")
+                    if fast_mode_this_round:
+                        self._debug_scan()
                     proceed_next = self._handle_single_choice(i)
                 else:
                     multi_result = self.tasker.post_task("多选题").wait().get()
                     if multi_result.nodes:
                         self.send_log(f"第{i + 1}题 多选题")
+                        if fast_mode_this_round:
+                            self._debug_scan()
                         proceed_next = self._handle_multi_choice(i)
                     else:
                         click_blank_result = self.tasker.post_task("点选填空题").wait().get()
                         if click_blank_result.nodes:
                             self.send_log(f"第{i + 1}题 点选填空题")
+                            if fast_mode_this_round:
+                                self._debug_scan()
                             proceed_next = self._handle_click_blank(i)
                         else:
                             fill_result = self.tasker.post_task("填空题").wait().get()
                             if fill_result.nodes:
                                 self.send_log(f"第{i + 1}题 填空题")
+                                if fast_mode_this_round:
+                                    self._debug_scan()
                                 proceed_next = self._handle_fill_blank(i)
                             else:
                                 self.send_log(f"第{i + 1}题 无法识别题型，请求接管")
@@ -655,6 +664,57 @@ class MaaWorker:
                 time.sleep(0.5)
         self.send_log("多次滑动仍未找到提示按钮，直接提交AI")
         return screenshots
+
+    def _get_red_texts(self) -> list[str]:
+        find_result = self.tasker.post_task("find_hint_red").wait().get()
+        if not find_result.nodes:
+            return []
+        nodes = sorted(find_result.nodes, key=lambda n: (n.recognition.best_result.box[1], n.recognition.best_result.box[0]))
+        texts = []
+        for node in nodes:
+            box = list(node.recognition.best_result.box)
+            expanded = [max(0, box[0] - 10), max(0, box[1] - 10), box[2] + 20, box[3] + 20]
+            ocr_result = self.tasker.post_task("扫描选项", {"扫描选项": {"roi": expanded}}).wait().get()
+            if ocr_result.nodes:
+                text = ocr_result.nodes[0].recognition.best_result.text.strip()
+                if text:
+                    texts.append(text)
+        return texts
+
+    def _get_options(self) -> dict[str, tuple[str, list]]:
+        ocr_result = self.tasker.post_task("扫描选项").wait().get()
+        if not ocr_result.nodes:
+            return {}
+        options = {}
+        for node in ocr_result.nodes:
+            text = node.recognition.best_result.text.strip()
+            box = list(node.recognition.best_result.box)
+            match = re.match(r'^([A-E])\s*[.、,，]\s*', text)
+            if match:
+                letter = match.group(1)
+                content = text[match.end():].strip()
+                if content:
+                    options[letter] = (content, box)
+        return options
+
+    def _debug_scan(self):
+        self._scroll_to_hint()
+        click_result = self.tasker.post_task("查看提示").wait().get()
+        if click_result.nodes:
+            time.sleep(1)
+        img = self.tasker.controller.post_screencap().wait().get()
+        h, w = img.shape[:2]
+        for ry in [h // 3, h // 2, h * 2 // 3]:
+            for rx in [w // 4, w // 2, w * 3 // 4]:
+                bgr = img[ry, rx].tolist()
+                rgb = [bgr[2], bgr[1], bgr[0]]
+                print(f"[调试] ({rx},{ry}) RGB={rgb}")
+        red_texts = self._get_red_texts()
+        options = self._get_options()
+        self.tasker.post_task("关闭提示").wait()
+        time.sleep(1)
+        print(f"[极速模式] 红色文字: {red_texts}")
+        print(f"[极速模式] 选项: {options}")
 
     def _handle_fill_blank(self, index) -> bool:
         if self.stop_flag:
