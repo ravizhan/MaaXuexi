@@ -189,6 +189,8 @@ resource.post_bundle("./resource").wait()
 
 
 class MaaWorker:
+    DEBUG_MODE = False
+
     def __init__(
             self,
             queue: SimpleQueue,
@@ -665,21 +667,106 @@ class MaaWorker:
         self.send_log("多次滑动仍未找到提示按钮，直接提交AI")
         return screenshots
 
-    def _get_red_texts(self) -> list[str]:
-        find_result = self.tasker.post_task("find_hint_red").wait().get()
-        if not find_result.nodes:
+    @staticmethod
+    def _dilate(mask: np.ndarray, kh: int, kw: int) -> np.ndarray:
+        ph, pw = kh // 2, kw // 2
+        padded = np.pad(mask, ((ph, ph), (pw, pw)), mode='constant', constant_values=False)
+        h, w = mask.shape
+        result = np.zeros_like(mask)
+        for di in range(kh):
+            for dj in range(kw):
+                result |= padded[di:di + h, dj:dj + w]
+        return result
+
+    def _get_red_texts(self, img: np.ndarray = None) -> list[str]:
+        if img is None:
+            img = self.tasker.controller.post_screencap().wait().get()
+        roi_x, roi_y, roi_w, roi_h = 0, 483, 720, 517
+        hint_img = img[roi_y:roi_y + roi_h, roi_x:roi_x + roi_w]
+        redness = hint_img[:, :, 2].astype(np.int16) - np.maximum(
+            hint_img[:, :, 0], hint_img[:, :, 1]).astype(np.int16)
+        red_mask = redness > 50
+        rows_with_red = np.any(red_mask, axis=1)
+        line_heights = []
+        lh_start = None
+        for i, has in enumerate(rows_with_red):
+            if has and lh_start is None:
+                lh_start = i
+            elif not has and lh_start is not None:
+                line_heights.append(i - lh_start)
+                lh_start = None
+        if lh_start is not None:
+            line_heights.append(len(rows_with_red) - lh_start)
+        if not line_heights:
             return []
-        nodes = sorted(find_result.nodes, key=lambda n: (n.recognition.best_result.box[1], n.recognition.best_result.box[0]))
+        text_h = int(np.median(line_heights))
+        kh = max(3, text_h // 2)
+        kw = max(5, text_h)
+        dilated = self._dilate(red_mask, kh, kw)
+        rows_with_text = np.any(dilated, axis=1)
+        line_ranges = []
+        start = None
+        for i, has_text in enumerate(rows_with_text):
+            if has_text and start is None:
+                start = i
+            elif not has_text and start is not None:
+                if i - start > 5:
+                    line_ranges.append((start, i))
+                start = None
+        if start is not None and len(rows_with_text) - start > 5:
+            line_ranges.append((start, len(rows_with_text)))
+        blocks = []
+        for r_start, r_end in line_ranges:
+            cols_with_text = np.any(dilated[r_start:r_end], axis=0)
+            col_start = None
+            for j, has_text in enumerate(cols_with_text):
+                if has_text and col_start is None:
+                    col_start = j
+                elif not has_text and col_start is not None:
+                    if j - col_start > 5:
+                        blocks.append([
+                            max(0, roi_x + col_start - 5),
+                            max(0, roi_y + r_start - 5),
+                            j - col_start + 10,
+                            r_end - r_start + 10
+                        ])
+                    col_start = None
+            if col_start is not None and len(cols_with_text) - col_start > 5:
+                blocks.append([
+                    max(0, roi_x + col_start - 5),
+                    max(0, roi_y + r_start - 5),
+                    len(cols_with_text) - col_start + 10,
+                    r_end - r_start + 10
+                ])
+        if not blocks:
+            return []
+        LEFT_BLEED, RIGHT_BLEED, BLEED_TH = 37, 682, 5
         texts = []
-        for node in nodes:
-            box = list(node.recognition.best_result.box)
-            expanded = [max(0, box[0] - 10), max(0, box[1] - 10), box[2] + 20, box[3] + 20]
-            ocr_result = self.tasker.post_task("扫描选项", {"扫描选项": {"roi": expanded}}).wait().get()
+        for block in blocks:
+            ocr_result = self.tasker.post_task("扫描选项", {"扫描选项": {"roi": block}}).wait().get()
+            text = ""
             if ocr_result.nodes:
                 text = ocr_result.nodes[0].recognition.best_result.text.strip()
-                if text:
-                    texts.append(text)
-        return texts
+            texts.append(text)
+        i = 0
+        while i < len(texts) - 1:
+            right_edge = blocks[i][0] + blocks[i][2]
+            left_edge = blocks[i + 1][0]
+            if right_edge >= RIGHT_BLEED - BLEED_TH and left_edge <= LEFT_BLEED + BLEED_TH:
+                texts[i] += texts[i + 1]
+                nb = blocks[i + 1]
+                bx = min(blocks[i][0], nb[0])
+                by = min(blocks[i][1], nb[1])
+                blocks[i] = [
+                    bx, by,
+                    max(blocks[i][0] + blocks[i][2], nb[0] + nb[2]) - bx,
+                    max(blocks[i][1] + blocks[i][3], nb[1] + nb[3]) - by
+                ]
+                del texts[i + 1]
+                del blocks[i + 1]
+            else:
+                i += 1
+        return [t for t in texts if t]
 
     def _get_options(self) -> dict[str, tuple[str, list]]:
         ocr_result = self.tasker.post_task("扫描选项").wait().get()
@@ -703,13 +790,18 @@ class MaaWorker:
         if click_result.nodes:
             time.sleep(1)
         img = self.tasker.controller.post_screencap().wait().get()
-        h, w = img.shape[:2]
-        for ry in [h // 3, h // 2, h * 2 // 3]:
-            for rx in [w // 4, w // 2, w * 3 // 4]:
-                bgr = img[ry, rx].tolist()
-                rgb = [bgr[2], bgr[1], bgr[0]]
-                print(f"[调试] ({rx},{ry}) RGB={rgb}")
-        red_texts = self._get_red_texts()
+        if self.DEBUG_MODE:
+            Image.fromarray(img[:, :, ::-1]).save("debug_hint.png")
+            print("[调试] 已保存提示截图 debug_hint.png")
+            roi_x, roi_y, roi_w, roi_h = 0, 483, 720, 517
+            hint_img = img[roi_y:roi_y + roi_h, roi_x:roi_x + roi_w]
+            redness = hint_img[:, :, 2].astype(np.int16) - np.maximum(
+                hint_img[:, :, 0], hint_img[:, :, 1]).astype(np.int16)
+            processed = np.full_like(hint_img, 255)
+            processed[redness > 50] = hint_img[redness > 50]
+            Image.fromarray(processed[:, :, ::-1]).save("debug_hint_processed.png")
+            print("[调试] 已保存红色度过滤截图 debug_hint_processed.png")
+        red_texts = self._get_red_texts(img)
         options = self._get_options()
         self.tasker.post_task("关闭提示").wait()
         time.sleep(1)
@@ -798,7 +890,6 @@ class MaaWorker:
     def _handle_click_blank(self, index) -> bool:
         if self.stop_flag:
             return False
-        self.send_log("查看提示")
         scroll_shots = self._scroll_to_hint()
         click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
         if click_result.nodes:

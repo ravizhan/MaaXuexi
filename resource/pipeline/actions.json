@@ -170,7 +170,7 @@
   },
   "find_hint_red": {
     "recognition": "ColorMatch",
-    "roi": [0, 300, 720, 700],
+    "roi": [0, 483, 720, 517],
     "lower": [220, 100, 50],
     "upper": [255, 180, 130],
     "timeout": 2000
