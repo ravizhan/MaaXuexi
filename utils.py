@@ -976,7 +976,7 @@ class MaaWorker:
             return options
         print(f"[识别] 找到选项: {list(found.keys())}")
         for letter, box in found.items():
-            roi = [box[0] + box[2], box[1], 720 - box[0] - box[2], box[3]]
+            roi = [box[0] + box[2], box[1], 635 - box[0] - box[2], box[3]]
             ocr_result: TaskDetail = self.tasker.post_task("扫描选项", {"扫描选项": {"roi": roi}}).wait().get()
             text = ""
             if ocr_result.nodes:
