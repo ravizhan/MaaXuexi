@@ -10,7 +10,7 @@ from random import randint
 
 import numpy as np
 import plyer
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from PIL import ImageFilter
 from httpx import Client, Timeout
 from maa.controller import AdbController
@@ -312,11 +312,20 @@ class RedTextOCR(CustomRecognition):
         if DEBUG_MODE:
             vis = Image.fromarray(processed[:, :, ::-1]).convert("RGB")
             draw = ImageDraw.Draw(vis)
+            try:
+                font = ImageFont.truetype("msyh.ttc", 14)
+            except Exception:
+                font = ImageFont.load_default()
+            palette = [
+                (200, 60, 60), (60, 140, 200), (60, 180, 75), (200, 150, 40),
+                (140, 80, 180), (200, 100, 60), (40, 160, 160), (180, 60, 140),
+            ]
             for idx, block in enumerate(blocks):
                 bx, by, bw, bh = block
-                draw.rectangle([bx, by, bx + bw, by + bh], outline="lime", width=2)
+                color = palette[idx % len(palette)]
+                draw.rectangle([bx, by, bx + bw, by + bh], outline=color, width=2)
                 label = texts[idx] if idx < len(texts) else ""
-                draw.text((bx, by - 14), label, fill="lime")
+                draw.text((bx, by - 16), label, fill=color, font=font)
             os.makedirs("debug", exist_ok=True)
             vis.save("debug/hint_processed.png")
             if DEBUG_MODE:
