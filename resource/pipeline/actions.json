@@ -126,6 +126,12 @@
     "threshold": 0.9,
     "action": "Click"
   },
+  "选F": {
+    "recognition": "TemplateMatch",
+    "template": "../image/F.png",
+    "threshold": 0.9,
+    "action": "Click"
+  },
   "查找A": {
     "recognition": "TemplateMatch",
     "template": "../image/A.png",
@@ -157,6 +163,13 @@
   "查找E": {
     "recognition": "TemplateMatch",
     "template": "../image/E.png",
+    "threshold": 0.9,
+    "action": "DoNothing",
+    "timeout": 300
+  },
+  "查找F": {
+    "recognition": "TemplateMatch",
+    "template": "../image/F.png",
     "threshold": 0.9,
     "action": "DoNothing",
     "timeout": 300
@@ -210,7 +223,8 @@
   "文本框计数": {
     "recognition": "TemplateMatch",
     "template": "../image/文本框.png",
-    "action": "DoNothing"
+    "action": "DoNothing",
+    "timeout": 300
   },
   "文本框点击": {
     "recognition": "TemplateMatch",
@@ -275,7 +289,7 @@
   },
   "放弃答题": {
     "recognition": "TemplateMatch",
-    "template": "../image/放弃答题.png",
+    "template": "../image/放弃答题弹窗.png",
     "action": "DoNothing",
     "threshold": 0.9,
     "timeout": 1100

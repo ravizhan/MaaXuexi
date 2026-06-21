@@ -81,24 +81,29 @@ class AIResolver:
             "temperature": 0.2
         }
         response = self.session.post(self.url, json=data)
-        print(f"[AI] resolve_choice status={response.status_code}")
+        if DEBUG_MODE:
+            print(f"[AI] 选择题 请求状态={response.status_code}")
         try:
             if response.status_code == 200:
                 result = response.json()
                 raw = result["choices"][0]["message"]["content"]
-                print(f"[AI] resolve_choice raw=\"{raw}\"")
+                if DEBUG_MODE:
+                    print(f"[AI] 选择题 原始返回=\"{raw}\"")
                 answer = list(raw)
                 for i in answer.copy():
-                    if i not in ['A', 'B', 'C', 'D', 'E']:
+                    if i not in ['A', 'B', 'C', 'D', 'E', 'F']:
                         answer.remove(i)
                 if len(answer) == 0:
                     raise ValueError("Invalid answer")
-                print(f"[AI] resolve_choice parsed={answer}")
+                if DEBUG_MODE:
+                    print(f"[AI] 选择题 解析结果={answer}")
             else:
-                print(f"[AI] resolve_choice error: {response.text}")
+                if DEBUG_MODE:
+                    print(f"[AI] 选择题 请求失败: {response.text}")
                 answer = None
         except Exception as e:
-            print(f"[AI] resolve_choice exception: {e}, body={response.text}")
+            if DEBUG_MODE:
+                print(f"[AI] 选择题 异常: {e}, body={response.text}")
             answer = None
         return answer
 
@@ -129,18 +134,22 @@ class AIResolver:
             data["messages"][0]["content"] = f"能力与角色:你是一位答题助手\n背景信息:你会得到一张包含填空题的图片\n指令:你需要阅读该图片中的问题，认真理解题目和前后文，其中答案为{blank_num}个字符，思考后作出回答，确保填入答案后的全文逻辑正确，语义正确\n输出风格:你无需给出推理过程，也无需给出任何解释。你只需要回答空缺处应当填的内容，填充字数应当为{blank_num}"
             data["model"] = self.model
         response = self.session.post(self.url, json=data)
-        print(f"[AI] resolve_blank status={response.status_code}")
+        if DEBUG_MODE:
+            print(f"[AI] 填空题 请求状态={response.status_code}")
         try:
             if response.status_code == 200:
                 result = response.json()
                 raw = result["choices"][0]["message"]["content"]
-                print(f"[AI] resolve_blank raw=\"{raw}\"")
+                if DEBUG_MODE:
+                    print(f"[AI] 填空题 原始返回=\"{raw}\"")
                 result = raw
             else:
-                print(f"[AI] resolve_blank error: {response.text}")
+                if DEBUG_MODE:
+                    print(f"[AI] 填空题 请求失败: {response.text}")
                 result = None
         except Exception as e:
-            print(f"[AI] resolve_blank exception: {e}, body={response.text}")
+            if DEBUG_MODE:
+                print(f"[AI] 填空题 异常: {e}, body={response.text}")
             result = None
         return result
 
@@ -168,18 +177,22 @@ class AIResolver:
             "temperature": 0.2
         }
         response = self.session.post(self.url, json=data)
-        print(f"[AI] resolve_click_blank status={response.status_code}")
+        if DEBUG_MODE:
+            print(f"[AI] 点选填空题 请求状态={response.status_code}")
         try:
             if response.status_code == 200:
                 result = response.json()
                 raw = result["choices"][0]["message"]["content"]
-                print(f"[AI] resolve_click_blank raw=\"{raw}\"")
+                if DEBUG_MODE:
+                    print(f"[AI] 点选填空题 原始返回=\"{raw}\"")
                 result = raw
             else:
-                print(f"[AI] resolve_click_blank error: {response.text}")
+                if DEBUG_MODE:
+                    print(f"[AI] 点选填空题 请求失败: {response.text}")
                 result = None
         except Exception as e:
-            print(f"[AI] resolve_click_blank exception: {e}, body={response.text}")
+            if DEBUG_MODE:
+                print(f"[AI] 点选填空题 异常: {e}, body={response.text}")
             result = None
         return result
 
@@ -188,8 +201,11 @@ resource = Resource()
 resource.set_cpu()
 resource.post_bundle("./resource").wait()
 
+DEBUG_MODE = False
+
 
 def _dilate(mask: np.ndarray, kh: int, kw: int) -> np.ndarray:
+    """形态学膨胀：用 kh×kw 矩形核连接相邻像素"""
     ph, pw = kh // 2, kw // 2
     padded = np.pad(mask, ((ph, ph), (pw, pw)), mode='constant', constant_values=False)
     h, w = mask.shape
@@ -201,6 +217,8 @@ def _dilate(mask: np.ndarray, kh: int, kw: int) -> np.ndarray:
 
 
 class RedTextOCR(CustomRecognition):
+    """提示红字识别：红色度过滤 → 形态学膨胀分块 → 逐块OCR → 出血线合并"""
+
     ROI_X, ROI_Y, ROI_W, ROI_H = 0, 483, 720, 517
     LEFT_BLEED, RIGHT_BLEED, BLEED_TH = 37, 682, 5
 
@@ -208,11 +226,15 @@ class RedTextOCR(CustomRecognition):
         img = argv.image
         rx, ry, rw, rh = self.ROI_X, self.ROI_Y, self.ROI_W, self.ROI_H
         hint_img = img[ry:ry + rh, rx:rx + rw]
+
+        # 1. 红色度过滤：R - max(B, G) > 50，非红色像素置白
         redness = hint_img[:, :, 2].astype(np.int16) - np.maximum(
             hint_img[:, :, 0], hint_img[:, :, 1]).astype(np.int16)
         red_mask = redness > 50
         processed = np.full_like(hint_img, 255)
         processed[red_mask] = hint_img[red_mask]
+
+        # 2. 估算文字行高，确定膨胀核大小
         rows_with_red = np.any(red_mask, axis=1)
         line_heights = []
         lh_start = None
@@ -225,11 +247,13 @@ class RedTextOCR(CustomRecognition):
         if lh_start is not None:
             line_heights.append(len(rows_with_red) - lh_start)
         if not line_heights:
-            print("[RedTextOCR] 无红色像素")
+            if DEBUG_MODE:
+                print("[RedTextOCR] 无红色像素")
             return CustomRecognition.AnalyzeResult(box=[0, 0, 1, 1], detail='{"texts":[]}')
         text_h = int(np.median(line_heights))
-        kh, kw = 1, max(5, text_h)
-        kw = max(5, text_h)
+        kh, kw = 1, max(5, text_h)  # 垂直不膨胀，水平按行高膨胀连接同行文字
+
+        # 3. 形态学膨胀 + 行列扫描分块
         dilated = _dilate(red_mask, kh, kw)
         rows_with_text = np.any(dilated, axis=1)
         line_ranges = []
@@ -267,30 +291,38 @@ class RedTextOCR(CustomRecognition):
                     r_end - r_start + 10
                 ])
         if not blocks:
-            print("[RedTextOCR] 无文本块")
+            if DEBUG_MODE:
+                print("[RedTextOCR] 无文本块")
             return CustomRecognition.AnalyzeResult(box=[0, 0, 1, 1], detail='{"texts":[]}')
-        print(f"[RedTextOCR] {len(blocks)}个文本块, text_h={text_h}")
+
+        # 4. 逐块裁剪处理后图片，调用OCR识别
         texts = []
         for idx, block in enumerate(blocks):
             bx, by, bw, bh = block
             crop = processed[max(0, by):by + bh, max(0, bx):bx + bw].copy()
-            print(f"[RedTextOCR] block[{idx}] roi={block} crop={crop.shape} dtype={crop.dtype} contiguous={crop.flags['C_CONTIGUOUS']}")
             reco = context.run_recognition("扫描选项", crop)
             text = ""
             if reco and reco.best_result:
                 text = reco.best_result.text.strip()
-            print(f"[RedTextOCR] block[{idx}] => \"{text}\"")
+            if DEBUG_MODE:
+                print(f"[RedTextOCR] block[{idx}] roi={block} => \"{text}\"")
             texts.append(text)
-        vis = Image.fromarray(processed[:, :, ::-1]).convert("RGB")
-        draw = ImageDraw.Draw(vis)
-        for idx, block in enumerate(blocks):
-            bx, by, bw, bh = block
-            draw.rectangle([bx, by, bx + bw, by + bh], outline="lime", width=2)
-            label = texts[idx] if idx < len(texts) else ""
-            draw.text((bx, by - 14), label, fill="lime")
-        os.makedirs("debug", exist_ok=True)
-        vis.save("debug/hint_processed.png")
-        print("[RedTextOCR] 已保存 debug/hint_processed.png")
+
+        # 5. 保存调试图片（处理后图片 + 绿框标注）
+        if DEBUG_MODE:
+            vis = Image.fromarray(processed[:, :, ::-1]).convert("RGB")
+            draw = ImageDraw.Draw(vis)
+            for idx, block in enumerate(blocks):
+                bx, by, bw, bh = block
+                draw.rectangle([bx, by, bx + bw, by + bh], outline="lime", width=2)
+                label = texts[idx] if idx < len(texts) else ""
+                draw.text((bx, by - 14), label, fill="lime")
+            os.makedirs("debug", exist_ok=True)
+            vis.save("debug/hint_processed.png")
+            if DEBUG_MODE:
+                print("[RedTextOCR] 已保存 debug/hint_processed.png")
+
+        # 6. 出血线合并：当前块右边缘靠右出血线 且 下一块左边缘靠左出血线，则合并
         i = 0
         while i < len(texts) - 1:
             right_edge = blocks[i][0] + blocks[i][2]
@@ -310,7 +342,8 @@ class RedTextOCR(CustomRecognition):
             else:
                 i += 1
         result = [t for t in texts if t]
-        print(f"[RedTextOCR] 最终结果: {result}")
+        if DEBUG_MODE:
+            print(f"[RedTextOCR] 最终结果: {result}")
         return CustomRecognition.AnalyzeResult(box=[0, 0, 1, 1], detail=json.dumps({"texts": result}))
 
 
@@ -355,6 +388,12 @@ class MaaWorker:
         time.sleep(0.05)
 
     def pause(self):
+        plyer.notification.notify(
+            title="MaaXuexi",
+            message="任务暂停，需要用户操作",
+            app_name="MaaXuexi",
+            timeout=60
+        )
         self.send_log("任务暂停")
         self.pause_flag = True
         while self.pause_flag:
@@ -420,7 +459,9 @@ class MaaWorker:
             labels.append(detail["label"])
         return list(boxes), list(labels)
 
-    def task(self, tasks, fast_answer=False):
+    def task(self, tasks, fast_answer=False, debug=False):
+        global DEBUG_MODE
+        DEBUG_MODE = debug
         self.stop_flag = False
         self.fast_answer = fast_answer
         self.send_log("任务开始")
@@ -610,18 +651,9 @@ class MaaWorker:
 
     def _check_answer_correctness(self, question_index) -> bool:
         time.sleep(1.5 + randint(0, 500) / 1000)
-        q_name = ["第一题", "第二题", "第三题", "第四题", "第五题"][question_index]
-        current_q = self.tasker.post_task(q_name).wait().get()
-        if current_q.nodes:
-            self.send_log(f"[正误检测] 检测到 {q_name} 仍在显示，判定为答错")
-            return False
         next_btn = self.tasker.post_task("下一题检测").wait().get()
         if next_btn.nodes:
             self.send_log(f"[正误检测] 检测到下一题按钮，判定为答错")
-            return False
-        analysis = self.tasker.post_task("答案解析").wait().get()
-        if analysis.nodes:
-            self.send_log(f"[正误检测] 检测到答案解析，判定为答错")
             return False
         self.send_log(f"[正误检测] 第{question_index + 1}题答对")
         return True
@@ -705,18 +737,14 @@ class MaaWorker:
                                 return
 
                 if proceed_next:
-                    time.sleep(0.5)
+                    time.sleep(1)
                     self.tasker.post_task("下一题").wait()
-                    time.sleep(randint(2, 3))
-
                     if not self._check_answer_correctness(i):
                         self.send_log("检测到答错，重新答题")
                         self._handle_wrong_answer()
-
                         if fast_mode_this_round:
                             self.fast_answer = False
                             self.send_log("极速模式已关闭，切换为常规答题")
-
                         all_correct = False
                         break
 
@@ -789,6 +817,7 @@ class MaaWorker:
 
 
     def _get_red_texts(self) -> list[str]:
+        """调用 RedTextOCR 自定义识别器，从提示区域提取红色文字"""
         result: TaskDetail = self.tasker.post_task("红字识别").wait().get()
         texts = []
         if result.nodes:
@@ -813,14 +842,25 @@ class MaaWorker:
         print(f"[识别] 红色文字: {texts}")
         return texts
 
+    def _count_blanks(self) -> int:
+        """遍历所有文本框匹配结果，统计格子总数"""
+        count = 0
+        for i in range(10):
+            result: TaskDetail = self.tasker.post_task("文本框计数", {"文本框计数": {"index": i}}).wait().get()
+            if not result.nodes:
+                break
+            count += 1
+        return count
+
     def _scan_click_options(self) -> dict[str, list]:
+        """点选填空题选项识别：模板匹配1-4字选项框，内缩后OCR识别文字"""
         options = {}
         for n in [1, 2, 3, 4]:
-            result: TaskDetail = self.tasker.post_task(f"点选{n}字").wait().get()
-            if not result.nodes:
-                continue
-            for node in result.nodes:
-                box = list(node.recognition.best_result.box)
+            for i in range(20):
+                result: TaskDetail = self.tasker.post_task(f"点选{n}字", {f"点选{n}字": {"index": i}}).wait().get()
+                if not result.nodes:
+                    break
+                box = list(result.nodes[0].recognition.best_result.box)
                 x, y, w, h = box
                 roi = [max(0, x + 10), max(0, y + 10), max(1, w - 20), max(1, h - 20)]
                 ocr_result: TaskDetail = self.tasker.post_task("扫描选项", {"扫描选项": {"roi": roi}}).wait().get()
@@ -829,10 +869,11 @@ class MaaWorker:
                 text = ocr_result.nodes[0].recognition.best_result.text.strip()
                 if text:
                     options[text] = box
-                    print(f"[点选] {n}字模板 box={box} roi={roi} => \"{text}\"")
+                    if DEBUG_MODE:
+                        print(f"[点选] {n}字模板 box={box} roi={roi} => \"{text}\"")
         return options
 
-    def _fast_try_answer(self, question_type: str, options: dict, red_texts: list):
+    def _fast_try_answer(self, question_type: str, options: dict, red_texts: list, blank_num: int = 0):
         if not options and question_type not in ("填空题", "点选填空题"):
             return None
         if not red_texts:
@@ -849,8 +890,6 @@ class MaaWorker:
             return None
         if question_type == "填空题":
             answer = "".join(red_texts)
-            count_result: TaskDetail = self.tasker.post_task("文本框计数").wait().get()
-            blank_num = len(count_result.nodes) if count_result.nodes else 0
             if blank_num > 0 and len(answer) == blank_num:
                 print(f"[极速] 填空题: 答案=\"{answer}\", 字数={len(answer)}, 格子={blank_num}")
                 return answer
@@ -858,10 +897,8 @@ class MaaWorker:
             return None
         if question_type == "点选填空题":
             answer = "".join(red_texts)
-            count_result: TaskDetail = self.tasker.post_task("文本框计数").wait().get()
-            blank_num = len(count_result.nodes) if count_result.nodes else 0
-            if blank_num > 0:
-                print(f"[极速] 点选填空题: 答案=\"{answer}\", 格子={blank_num}")
+            if answer:
+                print(f"[极速] 点选填空题: 答案=\"{answer}\"")
                 return answer
             return None
         if question_type != "单选题":
@@ -874,11 +911,16 @@ class MaaWorker:
         is_judge = all(t in judge_words for t in option_texts.values())
         if is_judge:
             combined = "".join(red_texts)
-            print(f"[极速] 判断题, 红字长度={len(combined)}")
+            print(f"[极速] 判断题, 红字=\"{combined}\"")
+            if combined == "正确":
+                for letter, text in option_texts.items():
+                    if text == "正确":
+                        print(f"[极速] 判断题直接匹配: {letter} ({text})")
+                        return [letter]
             target_words = {"正确", "对", "√"} if len(combined) > 5 else {"错误", "错", "×"}
             for letter, text in option_texts.items():
                 if text in target_words:
-                    print(f"[极速] 判断题答案: {letter} ({text})")
+                    print(f"[极速] 判断题推测: {letter} ({text})")
                     return [letter]
             return None
         import re
@@ -918,13 +960,13 @@ class MaaWorker:
                         if fuzzy_match(text_clean, perm_clean):
                             print(f"[极速] 排列文字匹配: {letter} ({text}), 排列=\"{perm_text}\"")
                             return [letter]
-        print("[极速] 无法匹配, 交给AI")
+        self.send_log("[极速答题] 极速答题失败，原因：无法匹配，请求AI解答")
         return None
 
     def _get_options(self) -> dict[str, tuple[str, list]]:
         options = {}
         found = {}
-        for letter in ['A', 'B', 'C', 'D', 'E']:
+        for letter in ['A', 'B', 'C', 'D', 'E', 'F']:
             find_result: TaskDetail = self.tasker.post_task(f"查找{letter}").wait().get()
             if find_result.nodes:
                 box = list(find_result.nodes[0].recognition.best_result.box)
@@ -939,7 +981,7 @@ class MaaWorker:
             text = ""
             if ocr_result.nodes:
                 text = ocr_result.nodes[0].recognition.best_result.text.strip()
-                for noise in ["銀園", "銀"]:
+                for noise in ["銀園", "銀", "電", "機"]:
                     if text.endswith(noise):
                         text = text[:-len(noise)].strip()
             print(f"[识别] {letter} => \"{text}\"")
@@ -950,39 +992,37 @@ class MaaWorker:
 
     def _prepare(self, question_type: str) -> tuple:
         options = {}
+        blank_num = 0
         if self.fast_answer and question_type in ("单选题", "多选题"):
             options = self._get_options()
-        scroll_shots = self._scroll_to_hint()
-        click_result: TaskDetail = self.tasker.post_task("查看提示").wait().get()
-        if click_result.nodes:
-            time.sleep(1)
-        elif options and len(options) < 5:
-            print(f"[识别] 选项不全 {list(options.keys())}，滑动后重查")
+        if question_type == "填空题":
+            blank_num = self._count_blanks()
+        hint_found = self.tasker.post_task("查找提示").wait().get()
+        if not hint_found.nodes:
+            self.send_log("未找到提示按钮，滑动")
             self.tasker.controller.post_swipe(
                 randint(300, 400), randint(1000, 1100),
                 randint(300, 400), randint(300, 400), randint(300, 500)
             ).wait()
             time.sleep(0.5)
-            new_options = self._get_options()
-            for k, v in new_options.items():
-                if k not in options:
+            if self.fast_answer and question_type in ("单选题", "多选题"):
+                new_options = self._get_options()
+                for k, v in new_options.items():
                     options[k] = v
+        scroll_shots = self._scroll_to_hint()
+        time.sleep(1)
         red_texts = []
         if self.fast_answer:
             red_texts = self._get_red_texts()
-        return scroll_shots, options, red_texts
+        return scroll_shots, options, red_texts, blank_num
 
-    def _determine_answer(self, question_type: str, options: dict, red_texts: list, scroll_shots: list):
-        fast_answer = self._fast_try_answer(question_type, options, red_texts)
+    def _determine_answer(self, question_type: str, options: dict, red_texts: list, scroll_shots: list, blank_num: int = 0):
+        fast_answer = self._fast_try_answer(question_type, options, red_texts, blank_num)
         if fast_answer is not None:
             self.tasker.post_task("关闭提示").wait()
             time.sleep(1)
             return fast_answer, True
-        blank_num = 0
-        if question_type == "填空题":
-            count_result: TaskDetail = self.tasker.post_task("文本框计数").wait().get()
-            blank_num = len(count_result.nodes) if count_result.nodes else 0
-            if red_texts:
+        if question_type == "填空题" and red_texts:
                 answer = "".join(red_texts)
                 if len(answer) == blank_num:
                     self.tasker.post_task("关闭提示").wait()
@@ -992,13 +1032,16 @@ class MaaWorker:
         self.tasker.post_task("关闭提示").wait()
         time.sleep(1)
         if question_type in ("单选题", "多选题"):
-            print("[AI] 请求ai答题")
+            if DEBUG_MODE:
+                print("[AI] 请求选择题解答")
             answer = self.ai_resolver.resolve_choice(img_list)
         elif question_type == "填空题":
-            print("[AI] 请求ai答题")
+            if DEBUG_MODE:
+                print("[AI] 请求填空题解答")
             answer = self.ai_resolver.resolve_blank(img_list, False, blank_num)
         elif question_type == "点选填空题":
-            print("[AI] 请求ai答题")
+            if DEBUG_MODE:
+                print("[AI] 请求点选填空题解答")
             answer = self.ai_resolver.resolve_click_blank(img_list)
         else:
             answer = None
@@ -1020,9 +1063,23 @@ class MaaWorker:
                 self.send_log(f"极速模式解答成功，答案为{''.join(answer)}")
             else:
                 self.send_log(f"AI解答成功，答案为{''.join(answer)}")
+            failed = []
             for choice in answer:
-                self.tasker.post_task(f"选{choice}").wait()
-                time.sleep(0.2)
+                result: TaskDetail = self.tasker.post_task(f"选{choice}").wait().get()
+                if result.nodes:
+                    time.sleep(0.2)
+                else:
+                    failed.append(choice)
+            if failed:
+                print(f"[选择题] 选项 {failed} 可能被遮挡，下滑重试")
+                self.tasker.controller.post_swipe(
+                    randint(300, 400), randint(600, 700),
+                    randint(300, 400), randint(300, 400), randint(200, 300)
+                ).wait()
+                time.sleep(0.3)
+                for choice in failed:
+                    self.tasker.post_task(f"选{choice}").wait()
+                    time.sleep(0.2)
             return True
         if question_type == "填空题":
             if from_fast:
@@ -1042,72 +1099,53 @@ class MaaWorker:
         return False
 
     def _fast_click_blanks(self, answer: str) -> bool:
-        count_result: TaskDetail = self.tasker.post_task("文本框计数").wait().get()
-        blanks = len(count_result.nodes) if count_result.nodes else 0
-        if blanks <= 0:
+        """极速点选：识别选项位置，按顺序匹配答案点选，颜色变动验证"""
+        text_positions = self._scan_click_options()
+        if not text_positions:
+            self.send_log("极速点选: 未识别到选项, 交给AI")
             return False
-        self.send_log(f"极速点选: 答案=\"{answer}\", 格子数={blanks}")
-        pos = 0
-        while pos < len(answer) and blanks > 0:
-            search = answer[pos:pos + 2]
-            text_positions = self._scan_click_options()
-            if not text_positions:
-                break
-            target_box = None
-            matched_text = None
-            for text, box in text_positions.items():
-                if search in text or text in search:
-                    target_box = box
-                    matched_text = text
-                    break
-            if target_box is None:
-                print(f"[点选填空题] 未找到匹配 \"{search}\", 可选: {list(text_positions.keys())}")
-                pos += 2
+        self.send_log(f"极速点选: 答案=\"{answer}\", 选项={list(text_positions.keys())}")
+        clicked_any = False
+        remaining = answer
+        for text, box in text_positions.items():
+            if text not in remaining:
                 continue
-            cx = target_box[0] + target_box[2] // 2
-            cy = target_box[1] + target_box[3] // 2
+            cx = box[0] + box[2] // 2
+            cy = box[1] + box[3] // 2
             img_before = self.tasker.controller.post_screencap().wait().get()
             color_before = img_before[cy, cx].tolist()
+            print(f"[点选填空题] 点击 \"{text}\" 位置({cx},{cy})")
             self.tasker.controller.post_click(cx, cy).wait()
             time.sleep(0.5)
             img_after = self.tasker.controller.post_screencap().wait().get()
             color_after = img_after[cy, cx].tolist()
             diff = sum(abs(int(a) - int(b)) for a, b in zip(color_before, color_after))
-            print(f"[点选填空题] 点击 \"{matched_text}\" (搜 \"{search}\") 差值={diff}")
             if diff > 50:
-                count_result = self.tasker.post_task("文本框计数").wait().get()
-                new_blanks = len(count_result.nodes) if count_result.nodes else 0
-                filled = blanks - new_blanks
-                if filled > 0:
-                    blanks = new_blanks
-                    pos += 2 * filled
-                    print(f"[点选填空题] 填充{filled}格, 剩余{blanks}格, pos={pos}")
-                else:
-                    pos += 2
+                clicked_any = True
+                remaining = remaining.replace(text, "", 1)
+                print(f"[点选填空题] \"{text}\" 选中 (差值={diff})")
             else:
-                pos += 2
-        if blanks == 0:
-            self.send_log("极速点选完成")
-            return True
-        self.send_log(f"极速点选未完成, 剩余{blanks}格, 交给AI")
-        return False
+                self.send_log(f"\"{text}\" 未选中 (差值={diff}), 请求接管")
+                plyer.notification.notify(title="MaaXuexi", message=f"选项 \"{text}\" 选中失败", app_name="MaaXuexi", timeout=60)
+                self.pause()
+                return True
+        if not clicked_any:
+            self.send_log("极速点选: 未匹配任何选项, 交给AI")
+            return False
+        self.send_log("极速点选完成")
+        return True
 
     def _click_text_answers(self, answers: list[str]) -> bool:
+        """点选填空题普通流程：AI返回选项文本，识别位置后逐个点选"""
         text_positions = self._scan_click_options()
         if not text_positions:
-            self.send_log("未找到选项文本，请求接管")
-            plyer.notification.notify(
-                title="MaaXuexi",
-                message="未找到选项文本，请求接管",
-                app_name="MaaXuexi",
-                timeout=60
-            )
+            self.send_log("未识别到选项, 请求接管")
+            plyer.notification.notify(title="MaaXuexi", message="未识别到选项文本", app_name="MaaXuexi", timeout=60)
             self.pause()
-            return False
-        self.send_log(f"识别到 {len(text_positions)} 个选项: {list(text_positions.keys())}")
+            return True
+        self.send_log(f"选项: {list(text_positions.keys())}, 答案: {answers}")
+        clicked_any = False
         for ans in answers:
-            if self.stop_flag:
-                return False
             target_box = None
             matched_text = None
             for text, box in text_positions.items():
@@ -1116,48 +1154,29 @@ class MaaWorker:
                     matched_text = text
                     break
             if target_box is None:
-                self.send_log(f"未找到选项 \"{ans}\"，请求接管")
-                plyer.notification.notify(
-                    title="MaaXuexi",
-                    message=f"未找到选项 \"{ans}\"，请求接管",
-                    app_name="MaaXuexi",
-                    timeout=60
-                )
+                self.send_log(f"未找到 \"{ans}\", 申请支援")
+                plyer.notification.notify(title="MaaXuexi", message=f"未找到选项 \"{ans}\"", app_name="MaaXuexi", timeout=60)
                 self.pause()
-                return False
+                return True
             cx = target_box[0] + target_box[2] // 2
             cy = target_box[1] + target_box[3] // 2
-            max_retries = 3
-            selected = False
-            for retry in range(max_retries):
-                img_before = self.tasker.controller.post_screencap().wait().get()
-                color_before = img_before[cy, cx].tolist()
-                print(f"[点选填空题] 点击选项 \"{ans}\" (匹配 \"{matched_text}\") 位置 ({cx}, {cy}), 第{retry + 1}次尝试")
-                self.tasker.controller.post_click(cx, cy).wait()
-                time.sleep(0.5)
-                img_after = self.tasker.controller.post_screencap().wait().get()
-                color_after = img_after[cy, cx].tolist()
-                diff = sum(abs(int(a) - int(b)) for a, b in zip(color_before, color_after))
-                print(f"[点选填空题] 颜色变化: {color_before} -> {color_after}, 差值: {diff}")
-                if diff > 50:
-                    print(f"[点选填空题] 选项 \"{ans}\" 选中成功 (差值: {diff})")
-                    selected = True
-                    break
-                else:
-                    print(f"[点选填空题] 选项 \"{ans}\" 未选中 (差值: {diff}), 重试...")
-            if not selected:
-                self.send_log(f"选项 \"{ans}\" 选中失败，请求接管")
-                plyer.notification.notify(
-                    title="MaaXuexi",
-                    message=f"选项 \"{ans}\" 选中失败，请求接管",
-                    app_name="MaaXuexi",
-                    timeout=60
-                )
+            img_before = self.tasker.controller.post_screencap().wait().get()
+            color_before = img_before[cy, cx].tolist()
+            print(f"[点选填空题] 点击 \"{matched_text}\" 位置({cx},{cy})")
+            self.tasker.controller.post_click(cx, cy).wait()
+            time.sleep(0.5)
+            img_after = self.tasker.controller.post_screencap().wait().get()
+            color_after = img_after[cy, cx].tolist()
+            diff = sum(abs(int(a) - int(b)) for a, b in zip(color_before, color_after))
+            if diff > 50:
+                clicked_any = True
+                print(f"[点选填空题] \"{matched_text}\" 选中 (差值={diff})")
+            else:
+                self.send_log(f"\"{matched_text}\" 未选中 (差值={diff}), 请求接管")
+                plyer.notification.notify(title="MaaXuexi", message=f"选项 \"{matched_text}\" 选中失败", app_name="MaaXuexi", timeout=60)
                 self.pause()
-                return False
-            if matched_text in text_positions:
-                del text_positions[matched_text]
-            time.sleep(0.3)
+                return True
+        self.send_log("点选完成")
         return True
 
     def _handle_fill_blank(self, index) -> bool:
@@ -1167,7 +1186,8 @@ class MaaWorker:
         if not video_result.nodes:
             self.send_log("发现视频，正在请求AI解答")
             image = self.tasker.controller.post_screencap().wait().get()
-            print("[AI] 请求ai答题")
+            if DEBUG_MODE:
+                print("[AI] 请求填空题解答(视频)")
             answer = self.ai_resolver.resolve_blank([image], False)
             if answer is None:
                 plyer.notification.notify(
@@ -1180,29 +1200,29 @@ class MaaWorker:
                 self.pause()
                 return False
             return self._submit_answer("填空题", answer, False)
-        scroll_shots, options, red_texts = self._prepare("填空题")
-        answer, from_fast = self._determine_answer("填空题", options, red_texts, scroll_shots)
+        scroll_shots, options, red_texts, blank_num = self._prepare("填空题")
+        answer, from_fast = self._determine_answer("填空题", options, red_texts, scroll_shots, blank_num)
         if answer is None or answer == "":
             return False
         return self._submit_answer("填空题", answer, from_fast)
 
-    def _handle_single_choice(self, index) -> bool:
+    def _handle_single_choice(self, index, question_type="单选题") -> bool:
         if self.stop_flag:
             return False
-        scroll_shots, options, red_texts = self._prepare("单选题")
-        answer, from_fast = self._determine_answer("单选题", options, red_texts, scroll_shots)
+        scroll_shots, options, red_texts, blank_num = self._prepare(question_type)
+        answer, from_fast = self._determine_answer(question_type, options, red_texts, scroll_shots, blank_num)
         if answer is None:
             return False
-        return self._submit_answer("单选题", answer, from_fast)
+        return self._submit_answer(question_type, answer, from_fast)
 
     def _handle_multi_choice(self, index) -> bool:
-        return self._handle_single_choice(index)
+        return self._handle_single_choice(index, "多选题")
 
     def _handle_click_blank(self, index) -> bool:
         if self.stop_flag:
             return False
-        scroll_shots, options, red_texts = self._prepare("点选填空题")
-        answer, from_fast = self._determine_answer("点选填空题", options, red_texts, scroll_shots)
+        scroll_shots, options, red_texts, blank_num = self._prepare("点选填空题")
+        answer, from_fast = self._determine_answer("点选填空题", options, red_texts, scroll_shots, blank_num)
         if answer is None:
             return False
         return self._submit_answer("点选填空题", answer, from_fast)

@@ -31,6 +31,13 @@
               </template>
               基于一些题目特征，快速选出答案，可能存在答错风险
             </n-tooltip>
+            <n-switch v-model:value="tasks.debug" size="small" style="margin-left: 12px;" />
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <span style="font-size: 13px; color: #999; cursor: help;">调试输出</span>
+              </template>
+              输出更多日志到控制台，方便识别bug
+            </n-tooltip>
           </div>
         </n-list-item>
         <n-list-item>
@@ -63,7 +70,8 @@ const tasks = ref({
   watch: false,
   daily: false,
   fun: false,
-  fast_answer: false
+  fast_answer: false,
+  debug: false
 })
 
 function startTask() {
@@ -83,7 +91,7 @@ function startTask() {
   }
   fetch('/api/start', {
     method: 'POST',
-    body: JSON.stringify({"tasklist":task_list, "fast_answer":tasks.value.fast_answer}),
+    body: JSON.stringify({"tasklist":task_list, "fast_answer":tasks.value.fast_answer, "debug":tasks.value.debug}),
     headers: {
       'Content-Type': 'application/json'
     }
