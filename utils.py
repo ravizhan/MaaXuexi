@@ -610,31 +610,36 @@ class MaaWorker:
                                               randint(300, 400), randint(1000, 1500)).wait()
         self.send_log("视听学习任务完成")
 
-    def _navigate_to_daily_answer(self):
-        self.send_log("开始任务：每日答题")
+    def _enter_learning_score(self) -> bool:
+        """进入 我的 → 学习积分，等待积分规则出现确认加载完成"""
         self.tasker.post_task("我的").wait()
-        wait_time = 0.5 + randint(0, 500) / 1000
-        time.sleep(wait_time)
-        learning_score_result: TaskDetail = self.tasker.post_task("学习积分").wait().get()
-        if not learning_score_result.nodes:
+        time.sleep(0.5 + randint(0, 500) / 1000)
+        result: TaskDetail = self.tasker.post_task("学习积分").wait().get()
+        if not result.nodes:
             self.send_log("未找到学习积分按钮")
             self.tasker.post_task("返回2").wait()
             time.sleep(1)
             self.tasker.post_task("积分").wait()
         else:
-            box = learning_score_result.nodes[0].recognition.best_result.box
+            box = result.nodes[0].recognition.best_result.box
             self.tasker.controller.post_click(box[0] + randint(10, 30), box[1] + randint(10, 30))
-        time.sleep(10)
-        load_result: TaskDetail = self.tasker.post_task("加载失败").wait().get()
-        while not load_result.nodes:
-            if self.stop_flag:
-                return
+        rule_result: TaskDetail = self.tasker.post_task("积分规则").wait().get()
+        if not rule_result.nodes:
             self.send_log("积分界面加载失败，正在重试")
             self.tasker.post_task("返回").wait()
             self.tasker.post_task("积分").wait()
-            time.sleep(10)
-            load_result: TaskDetail = self.tasker.post_task("加载失败").wait().get()
-        self.send_log("加载成功")
+            rule_result = self.tasker.post_task("积分规则").wait().get()
+            if not rule_result.nodes:
+                self.send_log("积分界面加载失败")
+                return False
+        time.sleep(0.5)
+        self.send_log("已进入学习积分")
+        return True
+
+    def _navigate_to_daily_answer(self):
+        self.send_log("开始任务：每日答题")
+        if not self._enter_learning_score():
+            return
         self.tasker.controller.post_swipe(randint(200, 300), randint(1000, 1100), randint(500, 600), randint(100, 200),
                                           randint(1000, 1500)).wait()
         time.sleep(randint(1, 2))

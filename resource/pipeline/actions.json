@@ -45,6 +45,12 @@
     "timeout": 1100,
     "inverse": true
   },
+  "积分规则": {
+    "recognition": "TemplateMatch",
+    "template": "../image/积分规则.png",
+    "action": "DoNothing",
+    "timeout": 10000
+  },
   "我的": {
     "recognition": "TemplateMatch",
     "template": "../image/我的.png",
