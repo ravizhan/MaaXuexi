@@ -217,9 +217,19 @@ def _dilate(mask: np.ndarray, kh: int, kw: int) -> np.ndarray:
 
 
 class RedTextOCR(CustomRecognition):
-    """提示红字识别：红色度过滤 → 形态学膨胀分块 → 逐块OCR → 出血线合并"""
+    """提示红字OCR自定义识别器。
+    处理流程：
+    1. 裁剪提示区域(0,483,720,517)
+    2. 红色度过滤：R - max(B,G) > 50，非红色像素置白，只保留红色文字
+    3. 估算文字行高，确定形态学膨胀核大小（水平方向膨胀连接同行字符）
+    4. 形态学膨胀 → 行列扫描分块：将相连的红色像素聚合成文本块
+    5. 逐块裁剪处理后图片，调用MAA内置OCR(扫描选项)识别文字
+    6. 出血线合并：处理跨行文本（提示区域左右边缘的文本块合并为同一行）
+    """
 
+    # 提示区域在屏幕上的位置和大小
     ROI_X, ROI_Y, ROI_W, ROI_H = 0, 483, 720, 517
+    # 出血线阈值：文本块右边缘>=682 且 下一块左边缘<=37 时合并（处理跨行文本）
     LEFT_BLEED, RIGHT_BLEED, BLEED_TH = 37, 682, 5
 
     def analyze(self, context, argv: CustomRecognition.AnalyzeArg):
@@ -646,6 +656,7 @@ class MaaWorker:
         return True
 
     def _navigate_to_daily_answer(self):
+        """导航到每日答题页面：执行一系列MAA任务点击进入答题界面。"""
         self.send_log("开始任务：每日答题")
         if not self._enter_learning_score():
             return
@@ -664,6 +675,8 @@ class MaaWorker:
         time.sleep(5)
 
     def _check_answer_correctness(self, question_index) -> bool:
+        """正误检测：答对后界面会自动跳转到下一题，答错则仍停留在当前题并显示"下一题"按钮。
+        因此通过检测"下一题"按钮是否存在来判断答对/答错。"""
         time.sleep(1.5 + randint(0, 500) / 1000)
         next_btn = self.tasker.post_task("下一题检测").wait().get()
         if next_btn.nodes:
@@ -673,6 +686,7 @@ class MaaWorker:
         return True
 
     def _handle_wrong_answer(self):
+        """答错处理：返回上一页 → 点击"放弃答题" → 确认退出弹窗 → 回到答题列表，准备重试"""
         self.tasker.post_task("返回3").wait()
         time.sleep(1)
         popup_result: TaskDetail = self.tasker.post_task("放弃答题").wait().get()
@@ -689,6 +703,13 @@ class MaaWorker:
         time.sleep(2)
 
     def daily_answer(self):
+        """每日答题主流程：
+        1. 导航到答题页面
+        2. 循环答题（最多5题/轮，最多重试1次）
+        3. 每题：识别题型 → 准备数据(OCR选项+红字) → 确定答案(极速/AI) → 提交 → 正误检测
+        4. 答错则放弃本轮，关闭极速模式，重新开始
+        5. 全部答对后检测验证码
+        """
         self._navigate_to_daily_answer()
         if self.stop_flag:
             return
@@ -720,6 +741,7 @@ class MaaWorker:
 
                 proceed_next = False
 
+                # 题型识别：依次尝试模板匹配 单选题/多选题/填空题/点选填空题
                 single_result = self.tasker.post_task("单选题").wait().get()
                 if single_result.nodes:
                     self.send_log(f"第{i + 1}题 单选题")
@@ -753,6 +775,7 @@ class MaaWorker:
                 if proceed_next:
                     time.sleep(1)
                     self.tasker.post_task("下一题").wait()
+                    # 正误检测：答对后界面自动跳转，答错则仍显示"下一题"按钮
                     if not self._check_answer_correctness(i):
                         self.send_log("检测到答错，重新答题")
                         self._handle_wrong_answer()
@@ -765,6 +788,7 @@ class MaaWorker:
             if all_correct:
                 break
 
+            # 本轮答错，重试：重新点击"每日答题"按钮进入
             retry_count += 1
             if retry_count > max_retries:
                 self.send_log("重试次数已达上限，答题失败")
@@ -779,6 +803,7 @@ class MaaWorker:
             self.send_log(f"第 {retry_count} 次重试")
             self._click_daily_answer_button()
 
+        # 答题结束后两次验证码检测（答题结束和提交后各一次）
         time.sleep(2)
         recog_result: TaskDetail = self.tasker.post_task("访问异常").wait().get()
         if not recog_result.nodes:
@@ -809,6 +834,8 @@ class MaaWorker:
             self.pause()
 
     def _scroll_to_hint(self, max_swipes=2) -> list[np.ndarray]:
+        """向下滚动寻找"查看提示"按钮，每次滑动后截图保存。
+        返回截图列表（用于后续AI识别题目内容），找到提示按钮后停止。"""
         screenshots = []
         scroll_px = 700
         for i in range(max_swipes + 1):
@@ -831,7 +858,9 @@ class MaaWorker:
 
 
     def _get_red_texts(self) -> list[str]:
-        """调用 RedTextOCR 自定义识别器，从提示区域提取红色文字"""
+        """调用 RedTextOCR 自定义识别器，从提示区域提取红色文字。
+        OCR流程：红度过滤 → 形态学膨胀 → 分块裁剪 → 逐块OCR → 出血线合并。
+        返回红字文本列表，每组红字为一个元素。"""
         result: TaskDetail = self.tasker.post_task("红字识别").wait().get()
         texts = []
         if result.nodes:
@@ -857,7 +886,7 @@ class MaaWorker:
         return texts
 
     def _count_blanks(self) -> int:
-        """遍历所有文本框匹配结果，统计格子总数"""
+        """填空题OCR：遍历文本框模板匹配，统计填空格子总数（最多10个）。"""
         count = 0
         for i in range(10):
             result: TaskDetail = self.tasker.post_task("文本框计数", {"文本框计数": {"index": i}}).wait().get()
@@ -867,7 +896,8 @@ class MaaWorker:
         return count
 
     def _scan_click_options(self) -> dict[str, list]:
-        """点选填空题选项识别：模板匹配1-4字选项框，内缩后OCR识别文字"""
+        """点选填空题选项识别：模板匹配1-4字选项框，内缩10px后OCR识别文字。
+        返回 {选项文字: [x, y, w, h]} 映射。"""
         options = {}
         for n in [1, 2, 3, 4]:
             for i in range(20):
@@ -888,6 +918,12 @@ class MaaWorker:
         return options
 
     def _fast_try_answer(self, question_type: str, options: dict, red_texts: list, blank_num: int = 0):
+        """极速答题核心：基于OCR红字和选项文字进行匹配，无需调用AI。
+        - 单选题：判断题直接匹配正确/错误；普通题去标点后模糊匹配（精确/子串/长度≥2/3），多红字尝试排列组合
+        - 多选题：选项数≤红字组数则全选；否则逐条红字匹配选项，全部匹配才返回
+        - 填空题：红字拼接，字数=格子数则直接填入
+        - 点选填空题：红字拼接作为答案
+        返回选项字母列表/答案字符串，失败返回None交给AI。"""
         if not options and question_type not in ("填空题", "点选填空题"):
             return None
         if not red_texts:
@@ -900,7 +936,45 @@ class MaaWorker:
             if len(option_letters) <= len(red_texts):
                 print(f"[极速] 多选题: 选项数{len(option_letters)} <= 红字组数{len(red_texts)}, 全选 {option_letters}")
                 return option_letters
-            print(f"[极速] 多选题: 选项数{len(option_letters)} > 红字组数{len(red_texts)}, 交给AI")
+            import re
+            option_texts = {l: options[l][0] for l in options}
+            print(f"[极速] 多选题: 选项数{len(option_letters)} > 红字组数{len(red_texts)}, 红字={red_texts}, 选项={option_texts}")
+            def strip_punct(s):
+                return re.sub(r'[^\w]', '', s)
+            def fuzzy_match(a: str, b: str) -> bool:
+                if a == b:
+                    return True
+                if a in b or b in a:
+                    return min(len(a), len(b)) / max(len(a), len(b)) >= 2 / 3
+                return False
+            def match_red_to_option(red_text):
+                red_clean = strip_punct(red_text)
+                for letter, text in option_texts.items():
+                    text_clean = strip_punct(text)
+                    if not text_clean:
+                        if text in red_text:
+                            return letter
+                    else:
+                        if red_clean and fuzzy_match(red_clean, text_clean):
+                            return letter
+                return None
+            matched = []
+            unmatched_reds = []
+            for rt in red_texts:
+                result = match_red_to_option(rt)
+                if result is not None:
+                    print(f"[极速] 多选题红字匹配: \"{rt}\" -> {result} ({option_texts[result]})")
+                    if result not in matched:
+                        matched.append(result)
+                else:
+                    unmatched_reds.append(rt)
+            if unmatched_reds:
+                print(f"[极速] 多选题: 有红字未匹配选项: {unmatched_reds}, 交给AI")
+                return None
+            if matched:
+                print(f"[极速] 多选题: 所有红字均匹配选项, 选 {matched}")
+                return matched
+            print(f"[极速] 多选题: 文字匹配失败, 交给AI")
             return None
         if question_type == "填空题":
             answer = "".join(red_texts)
@@ -978,6 +1052,9 @@ class MaaWorker:
         return None
 
     def _get_options(self) -> dict[str, tuple[str, list]]:
+        """OCR扫描选择题选项文字。
+        流程：模板匹配A-F字母位置 → 对每个字母右侧区域(到x=635)执行OCR → 去噪(銀園等)。
+        返回 {字母: (文字, [x, y, w, h])} 映射。"""
         options = {}
         found = {}
         for letter in ['A', 'B', 'C', 'D', 'E', 'F']:
@@ -991,6 +1068,7 @@ class MaaWorker:
         print(f"[识别] 找到选项: {list(found.keys())}")
         for letter, box in found.items():
             roi = [box[0] + box[2], box[1], 635 - box[0] - box[2], box[3]]
+            # OCR区域：从字母右侧到x=635，避开字母图标本身
             ocr_result: TaskDetail = self.tasker.post_task("扫描选项", {"扫描选项": {"roi": roi}}).wait().get()
             text = ""
             if ocr_result.nodes:
@@ -1005,6 +1083,14 @@ class MaaWorker:
         return options
 
     def _prepare(self, question_type: str) -> tuple:
+        """准备答题数据，返回 (截图列表, 选项OCR结果, 红字列表, 填空格子数)。
+        流程：
+        1. [极速+选择题] OCR扫描选项文字 (_get_options)
+        2. [填空题] 统计文本框格子数 (_count_blanks)
+        3. 查找"提示"按钮，未找到则下滑重试（下滑后重新扫描选项）
+        4. 滚动截图找到提示区域 (_scroll_to_hint)
+        5. [极速] RedTextOCR提取红字 (_get_red_texts)
+        """
         options = {}
         blank_num = 0
         if self.fast_answer and question_type in ("单选题", "多选题"):
@@ -1031,6 +1117,9 @@ class MaaWorker:
         return scroll_shots, options, red_texts, blank_num
 
     def _determine_answer(self, question_type: str, options: dict, red_texts: list, scroll_shots: list, blank_num: int = 0):
+        """确定答案：优先极速匹配，失败则调用AI。
+        返回 (答案, 是否极速) 元组。极速成功直接返回；否则发截图给AI大模型。
+        AI失败则通知用户接管。"""
         fast_answer = self._fast_try_answer(question_type, options, red_texts, blank_num)
         if fast_answer is not None:
             self.tasker.post_task("关闭提示").wait()
@@ -1043,6 +1132,7 @@ class MaaWorker:
                     time.sleep(1)
                     return answer, True
         img_list = [scroll_shots[-1], self.tasker.controller.post_screencap().wait().get()]
+        # 极速失败，关闭提示后发截图给AI大模型解答
         self.tasker.post_task("关闭提示").wait()
         time.sleep(1)
         if question_type in ("单选题", "多选题"):
@@ -1072,6 +1162,11 @@ class MaaWorker:
         return answer, False
 
     def _submit_answer(self, question_type: str, answer, from_fast: bool) -> bool:
+        """提交答案到界面。
+        - 选择题：逐个点击选项字母(选A/选B...)，被遮挡则下滑重试
+        - 填空题：点击文本框 → 输入文字
+        - 点选填空题：极速模式用颜色验证点选，AI模式用文字匹配点选
+        """
         if question_type in ("单选题", "多选题"):
             if from_fast:
                 self.send_log(f"极速模式解答成功，答案为{''.join(answer)}")
@@ -1113,7 +1208,8 @@ class MaaWorker:
         return False
 
     def _fast_click_blanks(self, answer: str) -> bool:
-        """极速点选：识别选项位置，按顺序匹配答案点选，颜色变动验证"""
+        """极速点选填空题：扫描选项文字位置 → 按答案顺序逐个点击 → 颜色差值验证选中状态。
+        颜色差值>50判定为选中成功，否则请求接管。"""
         text_positions = self._scan_click_options()
         if not text_positions:
             self.send_log("极速点选: 未识别到选项, 交给AI")
@@ -1150,7 +1246,8 @@ class MaaWorker:
         return True
 
     def _click_text_answers(self, answers: list[str]) -> bool:
-        """点选填空题普通流程：AI返回选项文本，识别位置后逐个点选"""
+        """点选填空题AI流程：AI返回选项文本列表 → 扫描选项位置 → 文字匹配 → 逐个点击 → 颜色验证。
+        匹配失败或选中失败则请求接管。"""
         text_positions = self._scan_click_options()
         if not text_positions:
             self.send_log("未识别到选项, 请求接管")
@@ -1194,6 +1291,7 @@ class MaaWorker:
         return True
 
     def _handle_fill_blank(self, index) -> bool:
+        """处理填空题：先检测是否为视频题（视频题直接截图发AI），否则走标准流程 prepare → determine → submit。"""
         if self.stop_flag:
             return False
         video_result: TaskDetail = self.tasker.post_task("填空题视频").wait().get()
@@ -1221,6 +1319,8 @@ class MaaWorker:
         return self._submit_answer("填空题", answer, from_fast)
 
     def _handle_single_choice(self, index, question_type="单选题") -> bool:
+        """处理单选题/多选题：prepare(OCR选项+红字) → determine(极速匹配/AI) → submit(点击选项)。
+        多选题通过 question_type="多选题" 复用此方法。"""
         if self.stop_flag:
             return False
         scroll_shots, options, red_texts, blank_num = self._prepare(question_type)
@@ -1230,9 +1330,11 @@ class MaaWorker:
         return self._submit_answer(question_type, answer, from_fast)
 
     def _handle_multi_choice(self, index) -> bool:
+        """多选题入口：委托给 _handle_single_choice，传入 question_type="多选题"。"""
         return self._handle_single_choice(index, "多选题")
 
     def _handle_click_blank(self, index) -> bool:
+        """处理点选填空题：prepare → determine(红字拼接/AI) → submit(极速点选/AI点选)。"""
         if self.stop_flag:
             return False
         scroll_shots, options, red_texts, blank_num = self._prepare("点选填空题")
