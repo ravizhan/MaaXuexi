@@ -941,23 +941,22 @@ class MaaWorker:
             print(f"[极速] 多选题: 选项数{len(option_letters)} > 红字组数{len(red_texts)}, 红字={red_texts}, 选项={option_texts}")
             def strip_punct(s):
                 return re.sub(r'[^\w]', '', s)
-            def fuzzy_match(a: str, b: str) -> bool:
-                if a == b:
-                    return True
-                if a in b or b in a:
-                    return min(len(a), len(b)) / max(len(a), len(b)) >= 2 / 3
-                return False
             def match_red_to_option(red_text):
                 red_clean = strip_punct(red_text)
+                # 优先级：精确 > 子串 > 模糊
+                exact, substring, fuzzy = None, None, None
                 for letter, text in option_texts.items():
                     text_clean = strip_punct(text)
                     if not text_clean:
                         if text in red_text:
-                            return letter
-                    else:
-                        if red_clean and fuzzy_match(red_clean, text_clean):
-                            return letter
-                return None
+                            exact = exact or letter
+                    elif text_clean == red_clean:
+                        exact = letter
+                    elif text_clean in red_clean or red_clean in text_clean:
+                        substring = substring or letter
+                    elif red_clean and min(len(text_clean), len(red_clean)) / max(len(text_clean), len(red_clean)) >= 2 / 3:
+                        fuzzy = fuzzy or letter
+                return exact or substring or fuzzy
             matched = []
             unmatched_reds = []
             for rt in red_texts:
@@ -1017,37 +1016,49 @@ class MaaWorker:
         def strip_punct(s):
             return re.sub(r'[^\w]', '', s)
         combined_clean = strip_punct(combined)
-        def fuzzy_match(a: str, b: str) -> bool:
-            if a == b:
-                return True
-            if a in b or b in a:
-                return min(len(a), len(b)) / max(len(a), len(b)) >= 2 / 3
-            return False
+        # 优先级匹配：精确 > 子串 > 模糊长度比(≥2/3)
+        exact, substring, fuzzy = [], [], []
         for letter, text in option_texts.items():
             text_clean = strip_punct(text)
             if not text_clean:
                 if text in combined:
-                    print(f"[极速] 标点匹配: {letter} ({text})")
-                    return [letter]
-            else:
-                if fuzzy_match(text_clean, combined_clean):
-                    print(f"[极速] 文字匹配: {letter} ({text})")
-                    return [letter]
+                    exact.append(letter)
+            elif text_clean == combined_clean:
+                exact.append(letter)
+            elif text_clean in combined_clean or combined_clean in text_clean:
+                substring.append(letter)
+            elif min(len(text_clean), len(combined_clean)) / max(len(text_clean), len(combined_clean)) >= 2 / 3:
+                fuzzy.append(letter)
+        for label, candidates, log_fn in [
+            ("精确", exact, lambda l: f"[极速] 精确匹配: {l} ({option_texts[l]})"),
+            ("子串", substring, lambda l: f"[极速] 子串匹配: {l} ({option_texts[l]})"),
+            ("模糊", fuzzy, lambda l: f"[极速] 模糊匹配: {l} ({option_texts[l]})"),
+        ]:
+            if candidates:
+                log_fn(candidates[0])
+                return [candidates[0]]
         if len(red_texts) > 1:
             from itertools import permutations
             for perm in permutations(red_texts):
                 perm_text = "".join(perm)
                 perm_clean = strip_punct(perm_text)
+                # 排列匹配也按优先级：精确 > 子串 > 模糊
+                exact_p, substring_p, fuzzy_p = [], [], []
                 for letter, text in option_texts.items():
                     text_clean = strip_punct(text)
                     if not text_clean:
                         if text in perm_text:
-                            print(f"[极速] 排列标点匹配: {letter} ({text}), 排列=\"{perm_text}\"")
-                            return [letter]
-                    else:
-                        if fuzzy_match(text_clean, perm_clean):
-                            print(f"[极速] 排列文字匹配: {letter} ({text}), 排列=\"{perm_text}\"")
-                            return [letter]
+                            exact_p.append(letter)
+                    elif text_clean == perm_clean:
+                        exact_p.append(letter)
+                    elif text_clean in perm_clean or perm_clean in text_clean:
+                        substring_p.append(letter)
+                    elif min(len(text_clean), len(perm_clean)) / max(len(text_clean), len(perm_clean)) >= 2 / 3:
+                        fuzzy_p.append(letter)
+                for label, candidates in [("排列精确", exact_p), ("排列子串", substring_p), ("排列模糊", fuzzy_p)]:
+                    if candidates:
+                        print(f"[极速] {label}匹配: {candidates[0]} ({option_texts[candidates[0]]}), 排列=\"{perm_text}\"")
+                        return [candidates[0]]
         self.send_log("[极速答题] 极速答题失败，原因：无法匹配，请求AI解答")
         return None
 
