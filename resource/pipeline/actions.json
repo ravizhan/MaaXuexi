@@ -1,15 +1,13 @@
 {
   "返回": {
-    "recognition": "TemplateMatch",
-    "template": "../image/返回.png",
-    "roi": [24,47,34,54],
-    "action": "Click"
+    "recognition": "DirectHit",
+    "action": "Key",
+    "key": [4]
   },
   "返回3": {
-    "recognition": "TemplateMatch",
-    "template": "../image/返回.png",
-    "roi": [40,40,120,100],
-    "action": "Click"
+    "recognition": "DirectHit",
+    "action": "Key",
+    "key": [4]
   },
   "综合": {
     "recognition": "TemplateMatch",
@@ -24,11 +22,9 @@
     "action": "Click"
   },
   "返回2": {
-    "recognition": "TemplateMatch",
-    "template": "../image/返回2.png",
-    "roi": [0,30,100,100],
-    "action": "Click",
-    "green_mask": true
+    "recognition": "DirectHit",
+    "action": "Key",
+    "key": [4]
   },
   "积分": {
     "recognition": "TemplateMatch",
@@ -329,6 +325,7 @@
     "template": "../image/点选选择题选项1字.png",
     "action": "DoNothing",
     "green_mask": true,
+    "threshold": 0.9,
     "timeout": 300
   },
   "点选2字": {
@@ -336,6 +333,7 @@
     "template": "../image/点选选择题选项2字.png",
     "action": "DoNothing",
     "green_mask": true,
+    "threshold": 0.9,
     "timeout": 300
   },
   "点选3字": {
@@ -343,6 +341,7 @@
     "template": "../image/点选选择题选项3字.png",
     "action": "DoNothing",
     "green_mask": true,
+    "threshold": 0.9,
     "timeout": 300
   },
   "点选4字": {
@@ -350,6 +349,7 @@
     "template": "../image/点选选择题选项4字.png",
     "action": "DoNothing",
     "green_mask": true,
+    "threshold": 0.9,
     "timeout": 300
   },
   "红字识别": {
