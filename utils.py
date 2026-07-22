@@ -259,7 +259,7 @@ class RedTextOCR(CustomRecognition):
         if not line_heights:
             if DEBUG_MODE:
                 print("[RedTextOCR] 无红色像素")
-            return CustomRecognition.AnalyzeResult(box=[0, 0, 1, 1], detail='{"texts":[]}')
+            return CustomRecognition.AnalyzeResult(box=[0, 0, 1, 1], detail={"texts": []})
         text_h = int(np.median(line_heights))
         kh, kw = 1, max(5, text_h)  # 垂直不膨胀，水平按行高膨胀连接同行文字
 
@@ -303,7 +303,7 @@ class RedTextOCR(CustomRecognition):
         if not blocks:
             if DEBUG_MODE:
                 print("[RedTextOCR] 无文本块")
-            return CustomRecognition.AnalyzeResult(box=[0, 0, 1, 1], detail='{"texts":[]}')
+            return CustomRecognition.AnalyzeResult(box=[0, 0, 1, 1], detail={"texts":[]})
 
         # 4. 逐块裁剪处理后图片，调用OCR识别
         texts = []
@@ -363,7 +363,7 @@ class RedTextOCR(CustomRecognition):
         result = [t for t in texts if t]
         if DEBUG_MODE:
             print(f"[RedTextOCR] 最终结果: {result}")
-        return CustomRecognition.AnalyzeResult(box=[0, 0, 1, 1], detail=json.dumps({"texts": result}))
+        return CustomRecognition.AnalyzeResult(box=[0, 0, 1, 1], detail={"texts": result})
 
 
 resource.register_custom_recognition("RedTextOCR", RedTextOCR())
@@ -741,49 +741,43 @@ class MaaWorker:
 
                 proceed_next = False
 
-                # 题型识别：依次尝试模板匹配 单选题/多选题/填空题/点选填空题
-                single_result = self.tasker.post_task("单选题").wait().get()
-                if single_result.nodes:
-                    self.send_log(f"第{i + 1}题 单选题")
-                    proceed_next = self._handle_single_choice(i)
-                else:
-                    multi_result = self.tasker.post_task("多选题").wait().get()
-                    if multi_result.nodes:
+                result = self.tasker.post_task("题型识别").wait().get()
+                question_type = result.nodes[0].recognition.best_result.text.strip() if result.nodes else ""
+                match question_type:
+                    case "单选题":
+                        self.send_log(f"第{i + 1}题 单选题")
+                        proceed_next = self._handle_single_choice(i)
+                    case "多选题":
                         self.send_log(f"第{i + 1}题 多选题")
                         proceed_next = self._handle_multi_choice(i)
-                    else:
-                        fill_result = self.tasker.post_task("填空题").wait().get()
-                        if fill_result.nodes:
-                            self.send_log(f"第{i + 1}题 填空题")
-                            proceed_next = self._handle_fill_blank(i)
-                        else:
-                            click_blank_result = self.tasker.post_task("点选填空题").wait().get()
-                            if click_blank_result.nodes:
-                                self.send_log(f"第{i + 1}题 点选填空题")
-                                proceed_next = self._handle_click_blank(i)
-                            else:
-                                self.send_log(f"第{i + 1}题 无法识别题型，请求接管")
-                                plyer.notification.notify(
-                                    title="MaaXuexi",
-                                    message="无法识别题型，请求接管",
-                                    app_name="MaaXuexi",
-                                    timeout=60
-                                )
-                                self.pause()
-                                return
+                    case "填空题":
+                        self.send_log(f"第{i + 1}题 填空题")
+                        proceed_next = self._handle_fill_blank(i)
+                    case "点选填空题":
+                        self.send_log(f"第{i + 1}题 点选填空题")
+                        proceed_next = self._handle_click_blank(i)
+                    case _:
+                        self.send_log(f"第{i + 1}题 无法识别题型，请求接管")
+                        plyer.notification.notify(
+                            title="MaaXuexi",
+                            message="无法识别题型，请求接管",
+                            app_name="MaaXuexi",
+                            timeout=60
+                        )
+                        self.pause()
+                        return
 
-                if proceed_next:
-                    time.sleep(1)
-                    self.tasker.post_task("下一题").wait()
-                    # 正误检测：答对后界面自动跳转，答错则仍显示"下一题"按钮
-                    if not self._check_answer_correctness(i):
-                        self.send_log("检测到答错，重新答题")
-                        self._handle_wrong_answer()
-                        if fast_mode_this_round:
-                            self.fast_answer = False
-                            self.send_log("极速模式已关闭，切换为常规答题")
-                        all_correct = False
-                        break
+                time.sleep(1)
+                self.tasker.post_task("下一题").wait()
+                # 正误检测：答对后界面自动跳转，答错则仍显示"下一题"按钮
+                if not self._check_answer_correctness(i):
+                    self.send_log("检测到答错，重新答题")
+                    self._handle_wrong_answer()
+                    if fast_mode_this_round:
+                        self.fast_answer = False
+                        self.send_log("极速模式已关闭，切换为常规答题")
+                    all_correct = False
+                    break
 
             if all_correct:
                 break
@@ -899,23 +893,30 @@ class MaaWorker:
         """点选填空题选项识别：模板匹配1-4字选项框，内缩10px后OCR识别文字。
         返回 {选项文字: [x, y, w, h]} 映射。"""
         options = {}
-        for n in [1, 2, 3, 4]:
-            for i in range(20):
+        try:
+            for n in [1, 2, 3, 4]:
                 result: TaskDetail = self.tasker.post_task(f"点选{n}字", {f"点选{n}字": {"index": i}}).wait().get()
-                if not result.nodes:
+                if result.status.failed:
                     break
                 box = list(result.nodes[0].recognition.best_result.box)
                 x, y, w, h = box
                 roi = [max(0, x + 10), max(0, y + 10), max(1, w - 20), max(1, h - 20)]
                 ocr_result: TaskDetail = self.tasker.post_task("扫描选项", {"扫描选项": {"roi": roi}}).wait().get()
-                if not ocr_result.nodes:
-                    continue
+                if ocr_result.status.failed:
+                    break
                 text = ocr_result.nodes[0].recognition.best_result.text.strip()
                 if text:
                     options[text] = box
                     if DEBUG_MODE:
                         print(f"[点选] {n}字模板 box={box} roi={roi} => \"{text}\"")
-        return options
+            if len(options.keys()) == 4:
+                return options
+            else:
+                return {}
+        except Exception:
+            self.send_log("点选填空题选项识别异常，请检查终端日志")
+        return {}
+
 
     def _fast_try_answer(self, question_type: str, options: dict, red_texts: list, blank_num: int = 0):
         """极速答题核心：基于OCR红字和选项文字进行匹配，无需调用AI。
@@ -1223,8 +1224,10 @@ class MaaWorker:
         颜色差值>50判定为选中成功，否则请求接管。"""
         text_positions = self._scan_click_options()
         if not text_positions:
-            self.send_log("极速点选: 未识别到选项, 交给AI")
-            return False
+            self.send_log("未识别到选项, 请求接管")
+            plyer.notification.notify(title="MaaXuexi", message="未识别到选项文本", app_name="MaaXuexi", timeout=60)
+            self.pause()
+            return True
         self.send_log(f"极速点选: 答案=\"{answer}\", 选项={list(text_positions.keys())}")
         clicked_any = False
         remaining = answer

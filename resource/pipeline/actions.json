@@ -11,13 +11,13 @@
   },
   "综合": {
     "recognition": "TemplateMatch",
-    "template": "../image/综合.png",
+    "template": "综合.png",
     "threshold": 0.9,
     "action": "Click"
   },
   "电视台": {
     "recognition": "TemplateMatch",
-    "template": "../image/电视台.png",
+    "template": "电视台.png",
     "roi" : [475,1212,54,68],
     "action": "Click"
   },
@@ -28,14 +28,14 @@
   },
   "积分": {
     "recognition": "TemplateMatch",
-    "template": "../image/积分.png",
+    "template": "积分.png",
     "roi" : [460, 50, 120, 45],
     "target_offset": [20,5,0,0],
     "action": "Click"
   },
   "加载失败": {
     "recognition": "TemplateMatch",
-    "template": "../image/加载失败.png",
+    "template": "加载失败.png",
     "roi" : [191,917,335,68],
     "action": "DoNothing",
     "timeout": 1100,
@@ -43,148 +43,123 @@
   },
   "积分规则": {
     "recognition": "TemplateMatch",
-    "template": "../image/积分规则.png",
+    "template": "积分规则.png",
     "action": "DoNothing",
     "timeout": 10000
   },
   "我的": {
     "recognition": "TemplateMatch",
-    "template": "../image/我的.png",
+    "template": "我的.png",
     "threshold": 0.85,
     "action": "Click"
   },
   "学习积分": {
     "recognition": "TemplateMatch",
-    "template": "../image/学习积分.png",
+    "template": "学习积分.png",
     "threshold": 0.85,
     "action": "Click"
   },
   "每日答题": {
     "recognition": "TemplateMatch",
-    "template": "../image/每日答题.png",
+    "template": "每日答题.png",
     "roi" : [0,330,720,950],
     "threshold": 0.85,
     "action": "DoNothing"
   },
-  "填空题": {
-    "recognition": "TemplateMatch",
-    "template": "../image/填空题.png",
-    "roi" : [0,182,720,75],
-    "action": "DoNothing",
-    "threshold": 0.9,
-    "timeout": 500
-  },
-  "单选题": {
-    "recognition": "TemplateMatch",
-    "template": "../image/单选题.png",
-    "roi": [0,182,720,75],
-    "action": "DoNothing",
-    "threshold": 0.9,
-    "timeout": 500
-  },
-  "多选题": {
-    "recognition": "TemplateMatch",
-    "template": "../image/多选题.png",
-    "roi": [0,182,720,75],
-    "action": "DoNothing",
-    "threshold": 0.9,
-    "timeout": 500
-  },
-  "点选填空题": {
-    "recognition": "TemplateMatch",
-    "template": "../image/点选填空题.png",
-    "roi": [0,182,720,75],
+  "题型识别": {
+    "recognition": "OCR",
+    "roi" : [0,182,360,75],
     "action": "DoNothing",
     "threshold": 0.9,
     "timeout": 500
   },
   "选A": {
     "recognition": "TemplateMatch",
-    "template": "../image/A.png",
+    "template": "A.png",
     "threshold": 0.9,
     "action": "Click"
   },
   "选B": {
     "recognition": "TemplateMatch",
-    "template": "../image/B.png",
+    "template": "B.png",
     "threshold": 0.9,
     "action": "Click"
   },
   "选C": {
     "recognition": "TemplateMatch",
-    "template": "../image/C.png",
+    "template": "C.png",
     "threshold": 0.9,
     "action": "Click"
   },
   "选D": {
     "recognition": "TemplateMatch",
-    "template": "../image/D.png",
+    "template": "D.png",
     "threshold": 0.9,
     "action": "Click"
   },
   "选E": {
     "recognition": "TemplateMatch",
-    "template": "../image/E.png",
+    "template": "E.png",
     "threshold": 0.9,
     "action": "Click"
   },
   "选F": {
     "recognition": "TemplateMatch",
-    "template": "../image/F.png",
+    "template": "F.png",
     "threshold": 0.9,
     "action": "Click"
   },
   "查找A": {
     "recognition": "TemplateMatch",
-    "template": "../image/A.png",
+    "template": "A.png",
     "threshold": 0.9,
     "action": "DoNothing",
     "timeout": 300
   },
   "查找B": {
     "recognition": "TemplateMatch",
-    "template": "../image/B.png",
+    "template": "B.png",
     "threshold": 0.9,
     "action": "DoNothing",
     "timeout": 300
   },
   "查找C": {
     "recognition": "TemplateMatch",
-    "template": "../image/C.png",
+    "template": "C.png",
     "threshold": 0.9,
     "action": "DoNothing",
     "timeout": 300
   },
   "查找D": {
     "recognition": "TemplateMatch",
-    "template": "../image/D.png",
+    "template": "D.png",
     "threshold": 0.9,
     "action": "DoNothing",
     "timeout": 300
   },
   "查找E": {
     "recognition": "TemplateMatch",
-    "template": "../image/E.png",
+    "template": "E.png",
     "threshold": 0.9,
     "action": "DoNothing",
     "timeout": 300
   },
   "查找F": {
     "recognition": "TemplateMatch",
-    "template": "../image/F.png",
+    "template": "F.png",
     "threshold": 0.9,
     "action": "DoNothing",
     "timeout": 300
   },
   "下一题": {
     "recognition": "TemplateMatch",
-    "template": "../image/下一题.png",
+    "template": "下一题.png",
     "roi" : [552,44,131,61],
     "action": "Click"
   },
   "访问异常": {
     "recognition": "TemplateMatch",
-    "template": "../image/访问异常.png",
+    "template": "访问异常.png",
     "roi" : [100,217,519,109],
     "action": "DoNothing",
     "timeout": 1100,
@@ -192,7 +167,7 @@
   },
   "填空题视频": {
     "recognition": "TemplateMatch",
-    "template": "../image/填空题视频.png",
+    "template": "填空题视频.png",
     "action": "DoNothing",
     "timeout": 1100,
     "inverse": true,
@@ -200,7 +175,7 @@
   },
   "查看提示": {
     "recognition": "TemplateMatch",
-    "template": "../image/查看提示.png",
+    "template": "查看提示.png",
     "action": "Click",
     "timeout": 500,
     "pre_delay": 100,
@@ -208,13 +183,13 @@
   },
   "查找提示": {
     "recognition": "TemplateMatch",
-    "template": "../image/查看提示.png",
+    "template": "查看提示.png",
     "action": "DoNothing",
     "timeout": 300
   },
   "关闭提示": {
     "recognition": "TemplateMatch",
-    "template": "../image/关闭提示.png",
+    "template": "关闭提示.png",
     "roi" : [635,429,52,54],
     "action": "Click"
   },
@@ -224,23 +199,23 @@
   },
   "文本框计数": {
     "recognition": "TemplateMatch",
-    "template": "../image/文本框.png",
+    "template": "文本框.png",
     "action": "DoNothing",
     "timeout": 300
   },
   "文本框点击": {
     "recognition": "TemplateMatch",
-    "template": "../image/文本框.png",
+    "template": "文本框.png",
     "action": "Click"
   },
   "文本框输入": {
     "recognition": "TemplateMatch",
-    "template": "../image/文本框.png",
+    "template": "文本框.png",
     "action": "InputText"
   },
   "第一题": {
     "recognition": "TemplateMatch",
-    "template": "../image/第一题.png",
+    "template": "第一题.png",
     "action": "DoNothing",
     "threshold": 0.8,
     "roi":[500, 150, 720, 280],
@@ -248,42 +223,42 @@
   },
   "第二题": {
     "recognition": "TemplateMatch",
-    "template": "../image/第二题.png",
+    "template": "第二题.png",
     "action": "DoNothing",
     "threshold": 0.8,
     "timeout": 500
   },
   "第三题": {
     "recognition": "TemplateMatch",
-    "template": "../image/第三题.png",
+    "template": "第三题.png",
     "action": "DoNothing",
     "threshold": 0.8,
     "timeout": 500
   },
   "第四题": {
     "recognition": "TemplateMatch",
-    "template": "../image/第四题.png",
+    "template": "第四题.png",
     "action": "DoNothing",
     "threshold": 0.8,
     "timeout": 500
   },
   "第五题": {
     "recognition": "TemplateMatch",
-    "template": "../image/第五题.png",
+    "template": "第五题.png",
     "action": "DoNothing",
     "threshold": 0.8,
     "timeout": 500
   },
   "答案解析": {
     "recognition": "TemplateMatch",
-    "template": "../image/答案解析.png",
+    "template": "答案解析.png",
     "action": "DoNothing",
     "threshold": 0.89,
     "timeout": 500
   },
   "下一题检测": {
     "recognition": "TemplateMatch",
-    "template": "../image/答错的下一题.png",
+    "template": "答错的下一题.png",
     "roi": [552, 44, 131, 61],
     "action": "DoNothing",
     "threshold": 0.9,
@@ -291,14 +266,14 @@
   },
   "放弃答题": {
     "recognition": "TemplateMatch",
-    "template": "../image/放弃答题弹窗.png",
+    "template": "放弃答题弹窗.png",
     "action": "DoNothing",
     "threshold": 0.9,
     "timeout": 1100
   },
   "放弃答题退出": {
     "recognition": "TemplateMatch",
-    "template": "../image/放弃答题退出.png",
+    "template": "放弃答题退出.png",
     "action": "DoNothing",
     "threshold": 0.9,
     "timeout": 1100
@@ -322,34 +297,38 @@
   },
   "点选1字": {
     "recognition": "TemplateMatch",
-    "template": "../image/点选选择题选项1字.png",
+    "template": "点选选择题选项1字.png",
     "action": "DoNothing",
     "green_mask": true,
-    "threshold": 0.9,
+    "threshold": 0.8,
+    "order_by": "Score",
     "timeout": 300
   },
   "点选2字": {
     "recognition": "TemplateMatch",
-    "template": "../image/点选选择题选项2字.png",
+    "template": "点选选择题选项2字.png",
     "action": "DoNothing",
     "green_mask": true,
-    "threshold": 0.9,
+    "threshold": 0.8,
+    "order_by": "Score",
     "timeout": 300
   },
   "点选3字": {
     "recognition": "TemplateMatch",
-    "template": "../image/点选选择题选项3字.png",
+    "template": "点选选择题选项3字.png",
     "action": "DoNothing",
     "green_mask": true,
     "threshold": 0.9,
+    "order_by": "Score",
     "timeout": 300
   },
   "点选4字": {
     "recognition": "TemplateMatch",
-    "template": "../image/点选选择题选项4字.png",
+    "template": "点选选择题选项4字.png",
     "action": "DoNothing",
     "green_mask": true,
-    "threshold": 0.9,
+    "threshold": 0.8,
+    "order_by": "Score",
     "timeout": 300
   },
   "红字识别": {
