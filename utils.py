@@ -1,3 +1,4 @@
+import re
 from typing import Optional
 import os
 import time
@@ -244,6 +245,8 @@ def _dilate(mask: np.ndarray, kh: int, kw: int) -> np.ndarray:
             result |= padded[di : di + h, dj : dj + w]
     return result
 
+def strip_punct(s):
+    return re.sub(r"\W", "", s)
 
 class RedTextOCR(CustomRecognition):
     """提示红字OCR自定义识别器。
@@ -712,7 +715,7 @@ class MaaWorker:
         self.tasker.post_task("我的").wait()
         time.sleep(0.5 + randint(0, 500) / 1000)
         result: TaskDetail = self.tasker.post_task("学习积分").wait().get()
-        if not result.nodes:
+        if result.status.failed:
             self.send_log("未找到学习积分按钮")
             self.tasker.post_task("返回2").wait()
             time.sleep(1)
@@ -723,12 +726,12 @@ class MaaWorker:
                 box[0] + randint(10, 30), box[1] + randint(10, 30)
             )
         rule_result: TaskDetail = self.tasker.post_task("积分规则").wait().get()
-        if not rule_result.nodes:
+        if rule_result.status.failed:
             self.send_log("积分界面加载失败，正在重试")
             self.tasker.post_task("返回").wait()
             self.tasker.post_task("积分").wait()
             rule_result = self.tasker.post_task("积分规则").wait().get()
-            if not rule_result.nodes:
+            if rule_result.status.failed:
                 self.send_log("积分界面加载失败")
                 return False
         time.sleep(0.5)
@@ -815,7 +818,7 @@ class MaaWorker:
                 return
 
             first_q = self.tasker.post_task("第一题").wait().get()
-            if not first_q.nodes:
+            if first_q.status.failed:
                 self.send_log("未找到第一题，答题页面异常")
                 plyer.notification.notify(
                     title="MaaXuexi",
@@ -837,7 +840,7 @@ class MaaWorker:
                 result = self.tasker.post_task("题型识别").wait().get()
                 question_type = (
                     result.nodes[0].recognition.best_result.text.strip()
-                    if result.nodes
+                    if result.status.succeeded
                     else ""
                 )
                 match question_type:
@@ -897,7 +900,7 @@ class MaaWorker:
         # 答题结束后两次验证码检测（答题结束和提交后各一次）
         time.sleep(2)
         reco_result: TaskDetail = self.tasker.post_task("访问异常").wait().get()
-        if not reco_result.nodes:
+        if reco_result.status.succeeded:
             plyer.notification.notify(
                 title="MaaXuexi",
                 message="发现验证码，请求接管",
@@ -914,7 +917,7 @@ class MaaWorker:
         # 结束答题，大概率会弹验证码
         time.sleep(2)
         reco_result: TaskDetail = self.tasker.post_task("访问异常").wait().get()
-        if not reco_result.nodes:
+        if reco_result.status.succeeded:
             plyer.notification.notify(
                 title="MaaXuexi",
                 message="发现验证码，请求接管",
@@ -930,7 +933,7 @@ class MaaWorker:
         返回红字文本列表，每组红字为一个元素。"""
         result: TaskDetail = self.tasker.post_task("红字识别").wait().get()
         texts = []
-        if result.nodes:
+        if result.status.succeeded:
             raw = result.nodes[0].recognition.raw_detail
             if raw:
                 if isinstance(raw, dict):
@@ -1001,173 +1004,165 @@ class MaaWorker:
         red_texts = [t for t in red_texts if t.strip()]
         if not red_texts:
             return None
-        if question_type == "多选题":
-            option_letters = list(options.keys())
-            if len(option_letters) <= len(red_texts):
-                print(
-                    f"[极速] 多选题: 选项数{len(option_letters)} <= 红字组数{len(red_texts)}, 全选 {option_letters}"
-                )
-                return option_letters
-            import re
-
-            option_texts = {l: options[l][0] for l in options}
-            print(
-                f"[极速] 多选题: 选项数{len(option_letters)} > 红字组数{len(red_texts)}, 红字={red_texts}, 选项={option_texts}"
-            )
-
-            def strip_punct(s):
-                return re.sub(r"\W", "", s)
-
-            def match_red_to_option(red_text):
-                red_clean = strip_punct(red_text)
-                # 优先级：精确 > 子串 > 模糊
-                exact, substring, fuzzy = None, None, None
-                for letter, text in option_texts.items():
-                    text_clean = strip_punct(text)
-                    if not text_clean:
-                        if text in red_text:
-                            exact = exact or letter
-                    elif text_clean == red_clean:
-                        exact = letter
-                    elif text_clean in red_clean or red_clean in text_clean:
-                        substring = substring or letter
-                    elif (
-                        red_clean
-                        and min(len(text_clean), len(red_clean))
-                        / max(len(text_clean), len(red_clean))
-                        >= 2 / 3
-                    ):
-                        fuzzy = fuzzy or letter
-                return exact or substring or fuzzy
-
-            matched = []
-            unmatched_reds = []
-            for rt in red_texts:
-                result = match_red_to_option(rt)
-                if result is not None:
+        match question_type:
+            case "多选题":
+                option_letters = list(options.keys())
+                if len(option_letters) <= len(red_texts):
                     print(
-                        f'[极速] 多选题红字匹配: "{rt}" -> {result} ({option_texts[result]})'
+                        f"[极速] 多选题: 选项数{len(option_letters)} <= 红字组数{len(red_texts)}, 全选 {option_letters}"
                     )
-                    if result not in matched:
-                        matched.append(result)
-                else:
-                    unmatched_reds.append(rt)
-            if unmatched_reds:
-                print(f"[极速] 多选题: 有红字未匹配选项: {unmatched_reds}, 交给AI")
-                return None
-            if matched:
-                print(f"[极速] 多选题: 所有红字均匹配选项, 选 {matched}")
-                return matched
-            print("[极速] 多选题: 文字匹配失败, 交给AI")
-            return None
-        if question_type == "填空题":
-            answer = "".join(red_texts)
-            if blank_num > 0 and len(answer) == blank_num:
+                    return option_letters
+                
+                option_texts = {l: options[l][0] for l in options}
                 print(
-                    f'[极速] 填空题: 答案="{answer}", 字数={len(answer)}, 格子={blank_num}'
+                    f"[极速] 多选题: 选项数{len(option_letters)} > 红字组数{len(red_texts)}, 红字={red_texts}, 选项={option_texts}"
                 )
-                return answer
-            print(f"[极速] 填空题: 字数{len(answer)} != 格子{blank_num}, 交给AI")
-            return None
-        if question_type == "点选填空题":
-            answer = "".join(red_texts)
-            if answer:
-                print(f'[极速] 点选填空题: 答案="{answer}"')
-                return answer
-            return None
-        if question_type != "单选题":
-            return None
-        red_texts = [t for t in red_texts if t.strip()]
-        if not red_texts:
-            return None
-        option_texts = {l: options[l][0] for l in options}
-        judge_words = {"正确", "错误", "对", "错", "√", "×"}
-        is_judge = all(t in judge_words for t in option_texts.values())
-        if is_judge:
-            combined = "".join(red_texts)
-            print(f'[极速] 判断题, 红字="{combined}"')
-            if combined == "正确":
-                for letter, text in option_texts.items():
-                    if text == "正确":
-                        print(f"[极速] 判断题直接匹配: {letter} ({text})")
-                        return [letter]
-            target_words = (
-                {"正确", "对", "√"} if len(combined) > 5 else {"错误", "错", "×"}
-            )
-            for letter, text in option_texts.items():
-                if text in target_words:
-                    print(f"[极速] 判断题推测: {letter} ({text})")
-                    return [letter]
-            return None
-        import re
+    
+                def match_red_to_option(red_text):
+                    red_clean = strip_punct(red_text)
+                    # 优先级：精确 > 子串 > 模糊
+                    exact, substring, fuzzy = None, None, None
+                    for letter, text in option_texts.items():
+                        text_clean = strip_punct(text)
+                        if not text_clean:
+                            if text in red_text:
+                                exact = exact or letter
+                        elif text_clean == red_clean:
+                            exact = letter
+                        elif text_clean in red_clean or red_clean in text_clean:
+                            substring = substring or letter
+                        elif (
+                            red_clean
+                            and min(len(text_clean), len(red_clean))
+                            / max(len(text_clean), len(red_clean))
+                            >= 2 / 3
+                        ):
+                            fuzzy = fuzzy or letter
+                    return exact or substring or fuzzy
+    
+                matched = []
+                unmatched_reds = []
+                for rt in red_texts:
+                    result = match_red_to_option(rt)
+                    if result is not None:
+                        print(
+                            f'[极速] 多选题红字匹配: "{rt}" -> {result} ({option_texts[result]})'
+                        )
+                        if result not in matched:
+                            matched.append(result)
+                    else:
+                        unmatched_reds.append(rt)
+                if unmatched_reds:
+                    print(f"[极速] 多选题: 有红字未匹配选项: {unmatched_reds}, 交给AI")
+                    return None
+                if matched:
+                    print(f"[极速] 多选题: 所有红字均匹配选项, 选 {matched}")
+                    return matched
+                print("[极速] 多选题: 文字匹配失败, 交给AI")
+                return None
+            case "填空题":
+                answer = "".join(red_texts)
+                if blank_num > 0 and len(answer) == blank_num:
+                    print(
+                        f'[极速] 填空题: 答案="{answer}", 字数={len(answer)}, 格子={blank_num}'
+                    )
+                    return answer
+                print(f"[极速] 填空题: 字数{len(answer)} != 格子{blank_num}, 交给AI")
+                return None
+            case "点选填空题":
+                answer = "".join(red_texts)
+                if answer:
+                    print(f'[极速] 点选填空题: 答案="{answer}"')
+                    return answer
+                return None
+            case "单选题":
+                option_texts = {i: options[i][0] for i in options}
+                judge_words = {"正确", "错误", "对", "错", "√", "×"}
+                is_judge = all(t in judge_words for t in option_texts.values())
+                if is_judge:
+                    combined = "".join(red_texts)
+                    print(f'[极速] 判断题, 红字="{combined}"')
+                    if combined == "正确":
+                        for letter, text in option_texts.items():
+                            if text == "正确":
+                                print(f"[极速] 判断题直接匹配: {letter} ({text})")
+                                return [letter]
+                    # 字多即是对.jpg
+                    target_words = (
+                        {"正确", "对", "√"} if len(combined) > 10 else {"错误", "错", "×"}
+                    )
+                    for letter, text in option_texts.items():
+                        if text in target_words:
+                            print(f"[极速] 判断题推测: {letter} ({text})")
+                            return [letter]
+                    return None
 
-        combined = "".join(red_texts)
-        print(f'[极速] 选择题, 红字="{combined}", 选项={option_texts}')
-
-        def strip_punct(s):
-            return re.sub(r"\W", "", s)
-
-        combined_clean = strip_punct(combined)
-        # 优先级匹配：精确 > 子串 > 模糊长度比(≥2/3)
-        exact, substring, fuzzy = [], [], []
-        for letter, text in option_texts.items():
-            text_clean = strip_punct(text)
-            if not text_clean:
-                if text in combined:
-                    exact.append(letter)
-            elif text_clean == combined_clean:
-                exact.append(letter)
-            elif text_clean in combined_clean or combined_clean in text_clean:
-                substring.append(letter)
-            elif (
-                min(len(text_clean), len(combined_clean))
-                / max(len(text_clean), len(combined_clean))
-                >= 2 / 3
-            ):
-                fuzzy.append(letter)
-        for label, candidates, log_fn in [
-            ("精确", exact, lambda l: f"[极速] 精确匹配: {l} ({option_texts[l]})"),
-            ("子串", substring, lambda l: f"[极速] 子串匹配: {l} ({option_texts[l]})"),
-            ("模糊", fuzzy, lambda l: f"[极速] 模糊匹配: {l} ({option_texts[l]})"),
-        ]:
-            if candidates:
-                log_fn(candidates[0])
-                return [candidates[0]]
-        if len(red_texts) > 1:
-            from itertools import permutations
-
-            for perm in permutations(red_texts):
-                perm_text = "".join(perm)
-                perm_clean = strip_punct(perm_text)
-                # 排列匹配也按优先级：精确 > 子串 > 模糊
-                exact_p, substring_p, fuzzy_p = [], [], []
+                combined = "".join(red_texts)
+                print(f'[极速] 选择题, 红字="{combined}", 选项={option_texts}')
+        
+                combined_clean = strip_punct(combined)
+                # 优先级匹配：精确 > 子串 > 模糊长度比(≥2/3)
+                exact, substring, fuzzy = [], [], []
                 for letter, text in option_texts.items():
                     text_clean = strip_punct(text)
                     if not text_clean:
-                        if text in perm_text:
-                            exact_p.append(letter)
-                    elif text_clean == perm_clean:
-                        exact_p.append(letter)
-                    elif text_clean in perm_clean or perm_clean in text_clean:
-                        substring_p.append(letter)
+                        if text in combined:
+                            exact.append(letter)
+                    elif text_clean == combined_clean:
+                        exact.append(letter)
+                    elif text_clean in combined_clean or combined_clean in text_clean:
+                        substring.append(letter)
                     elif (
-                        min(len(text_clean), len(perm_clean))
-                        / max(len(text_clean), len(perm_clean))
+                        min(len(text_clean), len(combined_clean))
+                        / max(len(text_clean), len(combined_clean))
                         >= 2 / 3
                     ):
-                        fuzzy_p.append(letter)
-                for label, candidates in [
-                    ("排列精确", exact_p),
-                    ("排列子串", substring_p),
-                    ("排列模糊", fuzzy_p),
+                        fuzzy.append(letter)
+                for label, candidates, log_fn in [
+                    ("精确", exact, lambda x: f"[极速] 精确匹配: {x} ({option_texts[x]})"),
+                    ("子串", substring, lambda x: f"[极速] 子串匹配: {x} ({option_texts[x]})"),
+                    ("模糊", fuzzy, lambda x: f"[极速] 模糊匹配: {x} ({option_texts[x]})"),
                 ]:
                     if candidates:
-                        print(
-                            f'[极速] {label}匹配: {candidates[0]} ({option_texts[candidates[0]]}), 排列="{perm_text}"'
-                        )
+                        log_fn(candidates[0])
                         return [candidates[0]]
-        self.send_log("[极速答题] 极速答题失败，原因：无法匹配，请求AI解答")
-        return None
+                if len(red_texts) > 1:
+                    from itertools import permutations
+        
+                    for perm in permutations(red_texts):
+                        perm_text = "".join(perm)
+                        perm_clean = strip_punct(perm_text)
+                        # 排列匹配也按优先级：精确 > 子串 > 模糊
+                        exact_p, substring_p, fuzzy_p = [], [], []
+                        for letter, text in option_texts.items():
+                            text_clean = strip_punct(text)
+                            if not text_clean:
+                                if text in perm_text:
+                                    exact_p.append(letter)
+                            elif text_clean == perm_clean:
+                                exact_p.append(letter)
+                            elif text_clean in perm_clean or perm_clean in text_clean:
+                                substring_p.append(letter)
+                            elif (
+                                min(len(text_clean), len(perm_clean))
+                                / max(len(text_clean), len(perm_clean))
+                                >= 2 / 3
+                            ):
+                                fuzzy_p.append(letter)
+                        for label, candidates in [
+                            ("排列精确", exact_p),
+                            ("排列子串", substring_p),
+                            ("排列模糊", fuzzy_p),
+                        ]:
+                            if candidates:
+                                print(
+                                    f'[极速] {label}匹配: {candidates[0]} ({option_texts[candidates[0]]}), 排列="{perm_text}"'
+                                )
+                                return [candidates[0]]
+                self.send_log("[极速答题] 极速答题失败，原因：无法匹配，请求AI解答")
+                return None
+            case _:
+                return None
 
     def _get_options(self) -> dict[str, tuple[str, list]]:
         """OCR扫描选择题选项文字。
@@ -1179,7 +1174,7 @@ class MaaWorker:
             find_result: TaskDetail = (
                 self.tasker.post_task(f"选项{letter}").wait().get()
             )
-            if find_result.nodes:
+            if find_result.status.succeeded:
                 box = list(find_result.nodes[0].recognition.best_result.box)
                 found[letter] = box
         if not found:
@@ -1195,7 +1190,7 @@ class MaaWorker:
                 .get()
             )
             text = ""
-            if ocr_result.nodes:
+            if ocr_result.status.succeeded:
                 text = ocr_result.nodes[0].recognition.best_result.text.strip()
                 for noise in ["銀園", "銀", "電", "機"]:
                     if text.endswith(noise):
@@ -1320,7 +1315,7 @@ class MaaWorker:
                     .wait()
                     .get()
                 )
-                if result.nodes:
+                if result.status.succeeded:
                     time.sleep(0.2)
                 else:
                     failed.append(choice)
@@ -1476,7 +1471,7 @@ class MaaWorker:
         if self.stop_flag:
             return False
         video_result: TaskDetail = self.tasker.post_task("填空题视频").wait().get()
-        if not video_result.nodes:
+        if not video_result.status.succeeded:
             self.send_log("发现视频，正在请求AI解答")
             image = self.tasker.controller.post_screencap().wait().get()
             if DEBUG_MODE:

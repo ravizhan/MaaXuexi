@@ -77,37 +77,43 @@
     "recognition": "TemplateMatch",
     "template": "A.png",
     "threshold": 0.9,
-    "action": "DoNothing"
+    "action": "DoNothing",
+    "timeout": 500
   },
   "选项B": {
     "recognition": "TemplateMatch",
     "template": "B.png",
     "threshold": 0.9,
-    "action": "DoNothing"
+    "action": "DoNothing",
+    "timeout": 500
   },
   "选项C": {
     "recognition": "TemplateMatch",
     "template": "C.png",
     "threshold": 0.9,
-    "action": "DoNothing"
+    "action": "DoNothing",
+    "timeout": 500
   },
   "选项D": {
     "recognition": "TemplateMatch",
     "template": "D.png",
     "threshold": 0.9,
-    "action": "DoNothing"
+    "action": "DoNothing",
+    "timeout": 500
   },
   "选项E": {
     "recognition": "TemplateMatch",
     "template": "E.png",
     "threshold": 0.9,
-    "action": "DoNothing"
+    "action": "DoNothing",
+    "timeout": 500
   },
   "选项F": {
     "recognition": "TemplateMatch",
     "template": "F.png",
     "threshold": 0.9,
-    "action": "DoNothing"
+    "action": "DoNothing",
+    "timeout": 500
   },
   "下一题": {
     "recognition": "TemplateMatch",
