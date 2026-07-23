@@ -4,18 +4,20 @@ version = "1.5.11"
 description = "基于全新架构的 学习强国 自动化助手。图像技术 + 模拟控制，解放双手！由 MaaFramework 强力驱动！"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.135.3",
+    "fastapi>=0.139.2",
     "httpx>=0.28.1",
-    "maafw>=5.10.2",
-    "pillow>=12.2.0",
+    "maafw>=5.12.2",
+    "pillow>=12.3.0",
     "plyer>=2.1.0",
-    "uvicorn>=0.44.0",
-    "websockets>=16.0",
+    "ruff>=0.15.22",
+    "ty>=0.0.62",
+    "uvicorn>=0.51.0",
+    "websockets>=16.1.1",
 ]
 [[tool.uv.index]]
 url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
 [dependency-groups]
 dev = [
-    "nuitka[all]>=4.1.0",
+    "nuitka[all]>=4.1.3",
 ]
