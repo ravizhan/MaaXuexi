@@ -245,8 +245,10 @@ def _dilate(mask: np.ndarray, kh: int, kw: int) -> np.ndarray:
             result |= padded[di : di + h, dj : dj + w]
     return result
 
+
 def strip_punct(s):
     return re.sub(r"\W", "", s)
+
 
 class RedTextOCR(CustomRecognition):
     """提示红字OCR自定义识别器。
@@ -1012,12 +1014,12 @@ class MaaWorker:
                         f"[极速] 多选题: 选项数{len(option_letters)} <= 红字组数{len(red_texts)}, 全选 {option_letters}"
                     )
                     return option_letters
-                
+
                 option_texts = {l: options[l][0] for l in options}
                 print(
                     f"[极速] 多选题: 选项数{len(option_letters)} > 红字组数{len(red_texts)}, 红字={red_texts}, 选项={option_texts}"
                 )
-    
+
                 def match_red_to_option(red_text):
                     red_clean = strip_punct(red_text)
                     # 优先级：精确 > 子串 > 模糊
@@ -1039,7 +1041,7 @@ class MaaWorker:
                         ):
                             fuzzy = fuzzy or letter
                     return exact or substring or fuzzy
-    
+
                 matched = []
                 unmatched_reds = []
                 for rt in red_texts:
@@ -1089,7 +1091,9 @@ class MaaWorker:
                                 return [letter]
                     # 字多即是对.jpg
                     target_words = (
-                        {"正确", "对", "√"} if len(combined) > 10 else {"错误", "错", "×"}
+                        {"正确", "对", "√"}
+                        if len(combined) > 10
+                        else {"错误", "错", "×"}
                     )
                     for letter, text in option_texts.items():
                         if text in target_words:
@@ -1099,7 +1103,7 @@ class MaaWorker:
 
                 combined = "".join(red_texts)
                 print(f'[极速] 选择题, 红字="{combined}", 选项={option_texts}')
-        
+
                 combined_clean = strip_punct(combined)
                 # 优先级匹配：精确 > 子串 > 模糊长度比(≥2/3)
                 exact, substring, fuzzy = [], [], []
@@ -1119,16 +1123,28 @@ class MaaWorker:
                     ):
                         fuzzy.append(letter)
                 for label, candidates, log_fn in [
-                    ("精确", exact, lambda x: f"[极速] 精确匹配: {x} ({option_texts[x]})"),
-                    ("子串", substring, lambda x: f"[极速] 子串匹配: {x} ({option_texts[x]})"),
-                    ("模糊", fuzzy, lambda x: f"[极速] 模糊匹配: {x} ({option_texts[x]})"),
+                    (
+                        "精确",
+                        exact,
+                        lambda x: f"[极速] 精确匹配: {x} ({option_texts[x]})",
+                    ),
+                    (
+                        "子串",
+                        substring,
+                        lambda x: f"[极速] 子串匹配: {x} ({option_texts[x]})",
+                    ),
+                    (
+                        "模糊",
+                        fuzzy,
+                        lambda x: f"[极速] 模糊匹配: {x} ({option_texts[x]})",
+                    ),
                 ]:
                     if candidates:
                         log_fn(candidates[0])
                         return [candidates[0]]
                 if len(red_texts) > 1:
                     from itertools import permutations
-        
+
                     for perm in permutations(red_texts):
                         perm_text = "".join(perm)
                         perm_clean = strip_punct(perm_text)

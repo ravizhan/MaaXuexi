@@ -82,12 +82,6 @@ jobs:
       - name: Install Dependencies
         run: uv sync --dev
 
-      - name: Setup Go
-        uses: actions/setup-go@v6.3.0
-        with:
-          go-version-file: 'updater/go.mod'
-          cache-dependency-path: "updater/go.sum"
-
       - name: Build Executable
         run: uv run python -m nuitka --standalone --windows-console-mode=force --assume-yes-for-downloads --user-package-configuration-file=nuitka-package.config.yml --remove-output --lto=yes --output-dir=build -o MaaXuexi webui.py
 
@@ -115,16 +109,6 @@ jobs:
         with:
           string: ${{ matrix.os }}
           split-by: '-'
-
-      - name: Build Updater Windows
-        if: ${{ matrix.os == 'windows-latest' }}
-        working-directory: ./updater
-        run: go build -ldflags "-s -w" -o ../build/webui.dist/Updater.exe
-
-      - name: Build Updater Linux Macos
-        if: ${{ matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest' }}
-        working-directory: ./updater
-        run: go build -ldflags "-s -w" -o ../build/webui.dist/Updater
 
       - name: Compress Build
         run: 7z a -t7z -mx=9 -myx=9 -mmt -ms=e -mqs=on -mf=BCJ2 -r MaaXuexi-${{ steps.split.outputs._0 }}-${{ github.ref_name }}.7z "./build/webui.dist/*"
