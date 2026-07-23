@@ -63,7 +63,7 @@
 
   安卓模拟器推荐使用[MuMu 模拟器](https://mumu.163.com/)
   
-  请将模拟器分辨率设置为 1280x720 DPI 240 横屏模式
+  请将模拟器分辨率设置为 1280x720 DPI 240 横屏模式(平板)
 
 ## 使用
 
@@ -77,7 +77,7 @@
 
 ### AI配置
 
-本项目默认使用[硅基流动](https://siliconflow.cn/)平台提供的 Qwen3.6-35B-A3B 来解决选择题和部分填空题。可自行更换其他多模态模型。
+本项目默认使用[硅基流动](https://siliconflow.cn/)平台提供的 Qwen3.5-35B-A3B 来解决选择题和部分填空题。可自行更换其他多模态模型。
 
 注册登录后，在 [API密钥](https://cloud.siliconflow.cn/account/ak) 页面，点击 `新建API密钥` 按钮，新建密钥然后复制
 
@@ -87,7 +87,7 @@
 
 按照每日答题5道题，趣味答题5道题计算，一个月大约消耗24万tokens
 
-目前 Qwen3.6-35B-A3B 的输入价格为 0.4元/百万tokens，一个月仅需0.1元。
+目前 Qwen3.5-35B-A3B 的输入价格为 0.4元/百万tokens，一个月仅需0.1元。
 ### 运行
 #### windows
 下载安装 [vc_redist](https://aka.ms/vs/17/release/vc_redist.x64.exe)
@@ -104,7 +104,7 @@
 
 首次打开时左上角会弹窗请求通知权限，请点击 `允许` 以确保正常发送通知
 
-![](https://img.ravi.top/img/470c7498ff549abdb61f820522ace6f9.png)
+[![](https://img.ravi.top/img/470c7498ff549abdb61f820522ace6f9.png)](https://i.mji.rip/2026/07/23/743bada49e29b01a1b51ad0d5828e089.png)
 
 1. 在 `设置` 中填入刚刚复制的API Key，点击 `保存`
 2. 在 `设备栏` 下拉选择模拟器，在模拟器中手动打开APP后，点击 `连接`
