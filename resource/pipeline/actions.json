@@ -73,83 +73,41 @@
     "threshold": 0.9,
     "timeout": 500
   },
-  "选A": {
+  "选项A": {
     "recognition": "TemplateMatch",
     "template": "A.png",
     "threshold": 0.9,
-    "action": "Click"
+    "action": "DoNothing"
   },
-  "选B": {
+  "选项B": {
     "recognition": "TemplateMatch",
     "template": "B.png",
     "threshold": 0.9,
-    "action": "Click"
+    "action": "DoNothing"
   },
-  "选C": {
+  "选项C": {
     "recognition": "TemplateMatch",
     "template": "C.png",
     "threshold": 0.9,
-    "action": "Click"
+    "action": "DoNothing"
   },
-  "选D": {
+  "选项D": {
     "recognition": "TemplateMatch",
     "template": "D.png",
     "threshold": 0.9,
-    "action": "Click"
+    "action": "DoNothing"
   },
-  "选E": {
+  "选项E": {
     "recognition": "TemplateMatch",
     "template": "E.png",
     "threshold": 0.9,
-    "action": "Click"
+    "action": "DoNothing"
   },
-  "选F": {
+  "选项F": {
     "recognition": "TemplateMatch",
     "template": "F.png",
     "threshold": 0.9,
-    "action": "Click"
-  },
-  "查找A": {
-    "recognition": "TemplateMatch",
-    "template": "A.png",
-    "threshold": 0.9,
-    "action": "DoNothing",
-    "timeout": 300
-  },
-  "查找B": {
-    "recognition": "TemplateMatch",
-    "template": "B.png",
-    "threshold": 0.9,
-    "action": "DoNothing",
-    "timeout": 300
-  },
-  "查找C": {
-    "recognition": "TemplateMatch",
-    "template": "C.png",
-    "threshold": 0.9,
-    "action": "DoNothing",
-    "timeout": 300
-  },
-  "查找D": {
-    "recognition": "TemplateMatch",
-    "template": "D.png",
-    "threshold": 0.9,
-    "action": "DoNothing",
-    "timeout": 300
-  },
-  "查找E": {
-    "recognition": "TemplateMatch",
-    "template": "E.png",
-    "threshold": 0.9,
-    "action": "DoNothing",
-    "timeout": 300
-  },
-  "查找F": {
-    "recognition": "TemplateMatch",
-    "template": "F.png",
-    "threshold": 0.9,
-    "action": "DoNothing",
-    "timeout": 300
+    "action": "DoNothing"
   },
   "下一题": {
     "recognition": "TemplateMatch",
@@ -197,21 +155,11 @@
     "recognition": "OCR",
     "only_rec": true
   },
-  "文本框计数": {
+  "文本框": {
     "recognition": "TemplateMatch",
     "template": "文本框.png",
-    "action": "DoNothing",
-    "timeout": 300
-  },
-  "文本框点击": {
-    "recognition": "TemplateMatch",
-    "template": "文本框.png",
-    "action": "Click"
-  },
-  "文本框输入": {
-    "recognition": "TemplateMatch",
-    "template": "文本框.png",
-    "action": "InputText"
+    "threshold": 0.9,
+    "action": "DoNothing"
   },
   "第一题": {
     "recognition": "TemplateMatch",
