@@ -1029,7 +1029,9 @@ class MaaWorker:
                         unmatched_reds.append(rt)
                 if unmatched_reds:
                     if DEBUG_MODE:
-                        print(f"[极速] 多选题: 有红字未匹配选项: {unmatched_reds}, 交给AI")
+                        print(
+                            f"[极速] 多选题: 有红字未匹配选项: {unmatched_reds}, 交给AI"
+                        )
                     return None
                 if matched:
                     if DEBUG_MODE:
@@ -1047,7 +1049,9 @@ class MaaWorker:
                         )
                     return answer
                 if DEBUG_MODE:
-                    print(f"[极速] 填空题: 字数{len(answer)} != 格子{blank_num}, 交给AI")
+                    print(
+                        f"[极速] 填空题: 字数{len(answer)} != 格子{blank_num}, 交给AI"
+                    )
                 return None
             case "点选填空题":
                 answer = "".join(red_texts)
@@ -1375,7 +1379,9 @@ class MaaWorker:
             )
             self.pause()
             return True
-        self.send_log(f'[点选填空题] 答案="{answer}", 选项={list(text_positions.keys())}')
+        self.send_log(
+            f'[点选填空题] 答案="{answer}", 选项={list(text_positions.keys())}'
+        )
         clicked_any = False
         remaining = answer
         for text, box in text_positions.items():
@@ -1427,7 +1433,9 @@ class MaaWorker:
             )
             self.pause()
             return True
-        self.send_log(f"[点选填空题] 选项: {list(text_positions.keys())}, 答案: {answers}")
+        self.send_log(
+            f"[点选填空题] 选项: {list(text_positions.keys())}, 答案: {answers}"
+        )
         for ans in answers:
             target_box = None
             matched_text = None

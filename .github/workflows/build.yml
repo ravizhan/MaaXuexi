@@ -18,9 +18,9 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
-          version: 10
+          version: 11
           run_install: false
           package_json_file: 'front/package.json'
 
@@ -53,13 +53,41 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ macos-latest, ubuntu-latest, windows-latest ]
+        include:
+          - os: ubuntu-24.04
+            platform: linux
+            arch: x86_64
+
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: aarch64
+
+          - os: macos-15-intel
+            platform: macos
+            arch: x86_64
+
+          - os: macos-15
+            platform: macos
+            arch: aarch64
+
+          - os: windows-2025
+            platform: win
+            arch: x86_64
+
+          - os: windows-11-arm
+            platform: win
+            arch: aarch64
     runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.platform }}-${{ matrix.arch }})
     needs: vite-build
 
     steps:
       - name: Check-out repository
         uses: actions/checkout@v6
+
+      - name: 'Workaround for missing zstd in windows-11-arm'
+        if: matrix.os == 'windows-11-arm'
+        run: choco install zstandard
 
       - name: Restore cached frontend artifacts
         uses: actions/cache@v5.0.3
@@ -68,6 +96,12 @@ jobs:
           key: ${{ needs.vite-build.outputs.cache-key }}
           enableCrossOsArchive: true
           fail-on-cache-miss: true
+
+      - name: Setup ccache
+        if: ${{ matrix.platform == 'linux' }}
+        shell: bash
+        run: |
+          sudo apt-get install -y ccache
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7.5.0
@@ -81,6 +115,21 @@ jobs:
 
       - name: Install Dependencies
         run: uv sync --dev
+
+      - name: Setup Environment Variables
+        shell: bash
+        run: |
+          echo "NUITKA_CACHE_DIR=${{ runner.temp }}/nuitka/cache" >> $GITHUB_ENV
+          echo "PYTHON_VERSION=$(python --version | awk '{print $2}' | cut -d '.' -f 1,2)" >> $GITHUB_ENV
+
+      - name: Cache Nuitka cache directory
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.NUITKA_CACHE_DIR }}
+          key: nuitka-${{ runner.os }}-${{ runner.arch }}-python-${{ env.PYTHON_VERSION }}-nuitka-${{ github.sha }}
+          restore-keys: |
+            nuitka-${{ runner.os }}-${{ runner.arch }}-python-${{ env.PYTHON_VERSION }}-
+            nuitka-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Build Executable
         run: uv run python -m nuitka --standalone --windows-console-mode=force --assume-yes-for-downloads --user-package-configuration-file=nuitka-package.config.yml --remove-output --lto=yes --output-dir=build -o MaaXuexi webui.py
@@ -103,15 +152,8 @@ jobs:
       - name: Create Version file
         run: echo "${{ github.ref_name }}" >> build/webui.dist/version
 
-      - name: Determine OS Name
-        uses: rishabhgupta/split-by@v1.0.1
-        id: split
-        with:
-          string: ${{ matrix.os }}
-          split-by: '-'
-
       - name: Compress Build
-        run: 7z a -t7z -mx=9 -myx=9 -mmt -ms=e -mqs=on -mf=BCJ2 -r MaaXuexi-${{ steps.split.outputs._0 }}-${{ github.ref_name }}.7z "./build/webui.dist/*"
+        run: 7z a -t7z -mx=9 -myx=9 -mmt -ms=e -mqs=on -mf=BCJ2 -r MaaXuexi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.7z "./build/main.dist/*"
 
       - name: Release
         uses: ncipollo/release-action@v1.20.0
@@ -119,4 +161,29 @@ jobs:
           draft: true
           allowUpdates: true
           artifacts: |
-            MaaXuexi-${{ steps.split.outputs._0 }}-${{ github.ref_name }}.7z
+            MaaXuexi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.7z
+
+  release:
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    needs: build
+    steps:
+      - name: Check-out repository
+        uses: actions/checkout@v6
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v8.0.1
+        with:
+          path: artifacts
+          pattern: MaaXuexi-*-*-${{ github.ref_name }}
+          merge-multiple: true
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1.20.0
+        with:
+          draft: true
+          allowUpdates: true
+          artifacts: artifacts/*.7z
+          name: 'Release ${{ github.ref_name }}'
