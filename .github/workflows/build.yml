@@ -141,7 +141,7 @@ jobs:
         run: echo "${{ github.ref_name }}" >> build/webui.dist/version
 
       - name: Compress Build
-        run: 7z a -t7z -mx=9 -myx=9 -mmt -ms=e -mqs=on -mf=BCJ2 -r MaaXuexi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.7z "./build/main.dist/*"
+        run: 7z a -t7z -mx=9 -myx=9 -mmt -ms=e -mqs=on -mf=BCJ2 -r MaaXuexi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.7z "./build/webui.dist/*"
 
       - name: Release
         uses: ncipollo/release-action@v1.20.0
