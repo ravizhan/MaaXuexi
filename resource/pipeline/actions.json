@@ -115,11 +115,12 @@
     "action": "DoNothing",
     "timeout": 500
   },
-  "下一题": {
+  "确定": {
     "recognition": "TemplateMatch",
-    "template": "下一题.png",
+    "template": "确定.png",
     "roi" : [552,44,131,61],
-    "action": "Click"
+    "action": "Click",
+    "timeout": 500
   },
   "访问异常": {
     "recognition": "TemplateMatch",
@@ -218,17 +219,10 @@
     "threshold": 0.9,
     "timeout": 500
   },
-  "放弃答题": {
-    "recognition": "TemplateMatch",
-    "template": "放弃答题弹窗.png",
-    "action": "DoNothing",
-    "threshold": 0.9,
-    "timeout": 1100
-  },
   "放弃答题退出": {
     "recognition": "TemplateMatch",
     "template": "放弃答题退出.png",
-    "action": "DoNothing",
+    "action": "Click",
     "threshold": 0.9,
     "timeout": 1100
   },

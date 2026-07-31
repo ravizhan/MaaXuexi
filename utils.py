@@ -766,40 +766,6 @@ class MaaWorker:
             return
         time.sleep(5)
 
-    def _check_answer_correctness(self, question_index) -> bool:
-        """正误检测：答对后界面会自动跳转到下一题，答错则仍停留在当前题并显示"下一题"按钮。
-        因此通过检测"下一题"按钮是否存在来判断答对/答错。"""
-        time.sleep(1.5 + randint(0, 500) / 1000)
-        next_btn = self.tasker.post_task("下一题检测").wait().get()
-        if next_btn.status.succeeded:
-            self.send_log("[正误检测] 检测到下一题按钮，判定为答错")
-            return False
-        self.send_log(f"[正误检测] 第{question_index + 1}题答对")
-        return True
-
-    def _handle_wrong_answer(self):
-        """答错处理：返回上一页 → 点击"放弃答题" → 确认退出弹窗 → 回到答题列表，准备重试"""
-        self.tasker.post_task("返回3").wait()
-        time.sleep(1)
-        popup_result: TaskDetail = self.tasker.post_task("放弃答题").wait().get()
-        if popup_result.status.succeeded:
-            popup_box = popup_result.nodes[0].recognition.best_result.box
-            exit_result: TaskDetail = (
-                self.tasker.post_task(
-                    "放弃答题退出", {"放弃答题退出": {"roi": list(popup_box)}}
-                )
-                .wait()
-                .get()
-            )
-        else:
-            exit_result: TaskDetail = self.tasker.post_task("放弃答题退出").wait().get()
-        if exit_result.status.succeeded:
-            exit_box = exit_result.nodes[0].recognition.best_result.box
-            cx = exit_box[0] + exit_box[2] // 2
-            cy = exit_box[1] + exit_box[3] // 2
-            self.tasker.controller.post_click(cx, cy).wait()
-        time.sleep(2)
-
     def daily_answer(self):
         """每日答题主流程：
         1. 导航到答题页面
@@ -813,7 +779,7 @@ class MaaWorker:
             return
 
         retry_count = 0
-        max_retries = 1
+        max_retries = 2
 
         while True:
             if self.stop_flag:
@@ -848,16 +814,16 @@ class MaaWorker:
                 match question_type:
                     case "单选题":
                         self.send_log(f"第{i + 1}题 单选题")
-                        proceed_next = self._handle_single_choice(i)
+                        proceed_next = self._handle_choice("单选题")
                     case "多选题":
                         self.send_log(f"第{i + 1}题 多选题")
-                        proceed_next = self._handle_multi_choice(i)
+                        proceed_next = self._handle_choice("多选题")
                     case "填空题":
                         self.send_log(f"第{i + 1}题 填空题")
-                        proceed_next = self._handle_fill_blank(i)
+                        proceed_next = self._handle_fill_blank()
                     case "点选填空题":
                         self.send_log(f"第{i + 1}题 点选填空题")
-                        proceed_next = self._handle_click_blank(i)
+                        proceed_next = self._handle_click_blank()
                     case _:
                         self.send_log(f"第{i + 1}题 无法识别题型，请求接管")
                         plyer.notification.notify(
@@ -870,34 +836,37 @@ class MaaWorker:
                         return
 
                 time.sleep(1)
-                self.tasker.post_task("下一题").wait()
+                self.tasker.post_task("确定").wait()
                 # 正误检测：答对后界面自动跳转，答错则仍显示"下一题"按钮
-                if not self._check_answer_correctness(i):
-                    self.send_log("检测到答错，重新答题")
-                    self._handle_wrong_answer()
+                next_btn = self.tasker.post_task("下一题检测").wait().get()
+                if next_btn.status.succeeded:
+                    self.send_log("[正误检测] 检测到下一题按钮，判定为答错，重新答题")
                     if fast_mode_this_round:
                         self.fast_answer = False
                         self.send_log("极速模式已关闭，切换为常规答题")
                     all_correct = False
                     break
-
+                self.send_log(f"[正误检测] 第{i + 1}题答对")
             if all_correct:
                 break
-
-            # 本轮答错，重试：重新点击"每日答题"按钮进入
-            retry_count += 1
-            if retry_count > max_retries:
-                self.send_log("重试次数已达上限，答题失败")
-                plyer.notification.notify(
-                    title="MaaXuexi",
-                    message="重试次数已达上限，答题失败",
-                    app_name="MaaXuexi",
-                    timeout=60,
-                )
-                return
-
-            self.send_log(f"第 {retry_count} 次重试")
-            self._click_daily_answer_button()
+            else:
+                # 本轮答错，重试：重新点击"每日答题"按钮进入
+                retry_count += 1
+                if retry_count > max_retries:
+                    self.send_log("重试次数已达上限，答题失败")
+                    plyer.notification.notify(
+                        title="MaaXuexi",
+                        message="重试次数已达上限，答题失败",
+                        app_name="MaaXuexi",
+                        timeout=60,
+                    )
+                    return
+                self.send_log(f"第 {retry_count} 次重试")
+                self.tasker.post_task("返回3").wait()
+                time.sleep(0.5)
+                self.tasker.post_task("放弃答题退出").wait().get()
+                time.sleep(2)
+                self._click_daily_answer_button()
 
         # 答题结束后两次验证码检测（答题结束和提交后各一次）
         time.sleep(2)
@@ -914,7 +883,7 @@ class MaaWorker:
 
             if proceed_next:
                 time.sleep(0.5)
-                self.tasker.post_task("下一题").wait()
+                self.tasker.post_task("确定").wait()
                 time.sleep(randint(2, 3))
         # 结束答题，大概率会弹验证码
         time.sleep(2)
@@ -1482,7 +1451,7 @@ class MaaWorker:
         self.send_log("点选完成")
         return True
 
-    def _handle_fill_blank(self, index) -> bool:
+    def _handle_fill_blank(self) -> bool:
         """处理填空题：先检测是否为视频题（视频题直接截图发AI），否则走标准流程 prepare → determine → submit。"""
         if self.stop_flag:
             return False
@@ -1512,7 +1481,7 @@ class MaaWorker:
             return False
         return self._submit_answer("填空题", answer, from_fast)
 
-    def _handle_single_choice(self, index, question_type="单选题") -> bool:
+    def _handle_choice(self, question_type) -> bool:
         """处理单选题/多选题：prepare(OCR选项+红字) → determine(极速匹配/AI) → submit(点击选项)。
         多选题通过 question_type="多选题" 复用此方法。"""
         if self.stop_flag:
@@ -1525,11 +1494,7 @@ class MaaWorker:
             return False
         return self._submit_answer(question_type, answer, from_fast)
 
-    def _handle_multi_choice(self, index) -> bool:
-        """多选题入口：委托给 _handle_single_choice，传入 question_type="多选题"。"""
-        return self._handle_single_choice(index, "多选题")
-
-    def _handle_click_blank(self, index) -> bool:
+    def _handle_click_blank(self) -> bool:
         """处理点选填空题：prepare → determine(红字拼接/AI) → submit(极速点选/AI点选)。"""
         if self.stop_flag:
             return False
