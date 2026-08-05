@@ -54,15 +54,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
+          - os: ubuntu-latest
             platform: linux
             arch: x86_64
 
-          - os: macos-15
+          - os: macos-latest
             platform: macos
             arch: aarch64
 
-          - os: windows-2025
+          - os: windows-latest
             platform: win
             arch: x86_64
     runs-on: ${{ matrix.os }}
@@ -72,10 +72,6 @@ jobs:
     steps:
       - name: Check-out repository
         uses: actions/checkout@v6
-
-      - name: 'Workaround for missing zstd in windows-11-arm'
-        if: matrix.os == 'windows-11-arm'
-        run: choco install zstandard
 
       - name: Restore cached frontend artifacts
         uses: actions/cache@v5.0.3
@@ -143,19 +139,17 @@ jobs:
       - name: Compress Build
         run: 7z a -t7z -mx=9 -myx=9 -mmt -ms=e -mqs=on -mf=BCJ2 -r MaaXuexi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.7z "./build/webui.dist/*"
 
-      - name: Release
-        uses: ncipollo/release-action@v1.20.0
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v7
         with:
-          draft: true
-          allowUpdates: true
-          artifacts: |
-            MaaXuexi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.7z
+          name: MaaXuexi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.7z
+          path: MaaXuexi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.7z
 
   release:
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
     permissions:
       contents: write
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: build
     steps:
       - name: Check-out repository
@@ -169,7 +163,7 @@ jobs:
           merge-multiple: true
 
       - name: Create Release
-        uses: ncipollo/release-action@v1.20.0
+        uses: ncipollo/release-action@v1.21.0
         with:
           draft: true
           allowUpdates: true
