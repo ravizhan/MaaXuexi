@@ -4,11 +4,6 @@
     "action": "Key",
     "key": [4]
   },
-  "返回3": {
-    "recognition": "DirectHit",
-    "action": "Key",
-    "key": [4]
-  },
   "综合": {
     "recognition": "TemplateMatch",
     "template": "综合.png",
@@ -21,25 +16,12 @@
     "roi" : [475,1212,54,68],
     "action": "Click"
   },
-  "返回2": {
-    "recognition": "DirectHit",
-    "action": "Key",
-    "key": [4]
-  },
   "积分": {
     "recognition": "TemplateMatch",
     "template": "积分.png",
     "roi" : [460, 50, 120, 45],
     "target_offset": [20,5,0,0],
     "action": "Click"
-  },
-  "加载失败": {
-    "recognition": "TemplateMatch",
-    "template": "加载失败.png",
-    "roi" : [191,917,335,68],
-    "action": "DoNothing",
-    "timeout": 1100,
-    "inverse": true
   },
   "积分规则": {
     "recognition": "TemplateMatch",

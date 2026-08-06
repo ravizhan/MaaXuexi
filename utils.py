@@ -662,7 +662,8 @@ class MaaWorker:
         waiting_time = 0
         self.tasker.post_task("电视台").wait()
         time.sleep(randint(3, 5))
-        while waiting_time < 400:
+        video_box = []
+        while not video_box:
             if self.stop_flag:
                 return
             # 识别视频，获取点击视频的坐标范围
@@ -683,26 +684,14 @@ class MaaWorker:
                 *[(box, cls) for box, cls in zip(boxes, box_class) if cls in ["video"]]
             )
             self.send_log(f"识别到{len(boxes)}个视频")
-            video_list = []
             for box in boxes:
                 img = image[box[1] : box[1] + box[3], box[0] : box[0] + box[2]]
-                video_list.append(img)
-
-            for i in range(len(box_class)):
-                if self.stop_flag:
-                    return
-                if not self._has_unread_text(video_list[i]):
+                if not self._has_unread_text(img):
                     continue
-                watch_count += 1
-                self.send_log(f"正在播放第{watch_count}个视频")
-                time.sleep(0.5)
-                self.tasker.controller.post_click(boxes[i][0] + 150, boxes[i][1] + 10)
-                time.sleep(3)
-                t = randint(50, 70)
-                time.sleep(t)
-                waiting_time += t
-                self.tasker.post_task("返回2").wait()
-                time.sleep(randint(3, 5))
+                else:
+                    video_box = box
+                    break
+            self.send_log("所有视频已看，正在滑动屏幕")
             self.tasker.controller.post_swipe(
                 randint(200, 300),
                 randint(900, 1000),
@@ -710,6 +699,24 @@ class MaaWorker:
                 randint(300, 400),
                 randint(1000, 1500),
             ).wait()
+        time.sleep(0.5)
+        self.tasker.controller.post_click(video_box[0] + 150, video_box[1] + 10)
+        while waiting_time < 400:
+            if self.stop_flag:
+                return
+            watch_count += 1
+            self.send_log(f"正在播放第{watch_count}个视频")
+            t = randint(50, 70)
+            time.sleep(t)
+            waiting_time += t
+            self.tasker.controller.post_swipe(
+                randint(500, 550),
+                randint(950, 960),
+                randint(570, 580),
+                randint(830, 840),
+                randint(45, 55),
+            ).wait()
+        self.tasker.post_task("返回").wait()
         self.send_log("视听学习任务完成")
 
     def _enter_learning_score(self) -> bool:
@@ -719,7 +726,7 @@ class MaaWorker:
         result: TaskDetail = self.tasker.post_task("学习积分").wait().get()
         if result.status.failed:
             self.send_log("未找到学习积分按钮")
-            self.tasker.post_task("返回2").wait()
+            self.tasker.post_task("返回").wait()
             time.sleep(1)
             self.tasker.post_task("积分").wait()
         else:
@@ -862,7 +869,7 @@ class MaaWorker:
                     )
                     return
                 self.send_log(f"第 {retry_count} 次重试")
-                self.tasker.post_task("返回3").wait()
+                self.tasker.post_task("返回").wait()
                 time.sleep(0.5)
                 self.tasker.post_task("放弃答题退出").wait().get()
                 time.sleep(2)
